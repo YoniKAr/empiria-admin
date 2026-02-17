@@ -42,7 +42,7 @@ export async function GET() {
       .upsert(categoryRows, { onConflict: "slug" })
       .select();
 
-    const catMap = new Map((categories ?? []).map((c: { slug: string; id: string }) => [c.slug, c.id]));
+    const catMap = new Map((categories ?? []).map((c: any) => [c.slug, c.id]));
 
     // ─── Organizer users ───
     const organizers = [
@@ -206,12 +206,12 @@ export async function GET() {
       .upsert(eventsData, { onConflict: "slug" })
       .select();
 
-    const eventMap = new Map((events ?? []).map((e: { slug: string; id: string; currency: string }) => [e.slug, e]));
+    const eventMap = new Map((events ?? []).map((e: any) => [e.slug, e]));
 
     // ─── Ticket Tiers ───
-    const tierRows: Record<string, unknown>[] = [];
+    const tierRows: any[] = [];
     for (const [slug, event] of eventMap.entries()) {
-      const ev = event as { id: string; currency: string };
+      const ev = event as any;
       if (ev.currency === "inr") {
         tierRows.push(
           { event_id: ev.id, name: "General", price: 500, currency: "inr", initial_quantity: 100, remaining_quantity: 80, max_per_order: 5 },
@@ -228,29 +228,29 @@ export async function GET() {
     }
 
     // Delete existing tiers for these events to avoid duplicates
-    const eventIds = Array.from(eventMap.values()).map((e) => (e as { id: string }).id);
+    const eventIds = Array.from(eventMap.values()).map((e: any) => e.id);
     await supabase.from("ticket_tiers").delete().in("event_id", eventIds);
     const { data: tiers } = await supabase.from("ticket_tiers").insert(tierRows).select();
 
     // ─── Orders and Tickets ───
     const attIds = attendees.map((a) => a.auth0_id);
-    const orderRows: Record<string, unknown>[] = [];
-    const ticketRows: Record<string, unknown>[] = [];
+    const orderRows: any[] = [];
+    const ticketRows: any[] = [];
 
     const publishedEvents = (events ?? []).filter(
-      (e: { status: string }) => e.status === "published" || e.status === "completed"
+      (e: any) => e.status === "published" || e.status === "completed"
     );
 
     let orderIndex = 0;
-    for (const event of publishedEvents as { id: string; currency: string; platform_fee_percent: number; status: string }[]) {
-      const eventTiers = (tiers ?? []).filter((t: { event_id: string }) => t.event_id === event.id);
+    for (const event of publishedEvents as any[]) {
+      const eventTiers = (tiers ?? []).filter((t: any) => t.event_id === event.id);
       if (eventTiers.length === 0) continue;
 
       // Generate 3-6 orders per event
       const numOrders = 3 + Math.floor(Math.random() * 4);
       for (let i = 0; i < numOrders; i++) {
         const buyerId = attIds[orderIndex % attIds.length];
-        const tier = eventTiers[i % eventTiers.length] as { id: string; price: number };
+        const tier = eventTiers[i % eventTiers.length] as any;
         const qty = 1 + Math.floor(Math.random() * 3);
         const subtotal = Number(tier.price) * qty;
         const fee = Math.round(subtotal * (event.platform_fee_percent / 100) * 100) / 100;
@@ -296,13 +296,13 @@ export async function GET() {
 
     // Now create order_items and tickets with real order IDs
     if (insertedOrders) {
-      const orderItemRows: Record<string, unknown>[] = [];
-      const finalTicketRows: Record<string, unknown>[] = [];
+      const orderItemRows: any[] = [];
+      const finalTicketRows: any[] = [];
 
       for (let i = 0; i < insertedOrders.length; i++) {
-        const order = insertedOrders[i] as { id: string; event_id: string; total_amount: number };
-        const relatedTix = ticketRows.filter((t) => (t as { _order_index: number })._order_index === i);
-        const tier = relatedTix[0] as { tier_id: string } | undefined;
+        const order = insertedOrders[i] as any;
+        const relatedTix = ticketRows.filter((t) => (t as any)._order_index === i);
+        const tier = relatedTix[0] as any;
 
         if (tier) {
           orderItemRows.push({
@@ -315,7 +315,7 @@ export async function GET() {
         }
 
         for (const t of relatedTix) {
-          const { _order_index, ...ticketData } = t as Record<string, unknown>;
+          const { _order_index, ...ticketData } = t as any;
           finalTicketRows.push({ ...ticketData, order_id: order.id });
         }
       }
@@ -328,9 +328,9 @@ export async function GET() {
       await supabase.from("tickets").insert(finalTicketRows);
 
       // Update total_tickets_sold on events
-      for (const event of publishedEvents as { id: string }[]) {
+      for (const event of publishedEvents as any[]) {
         const count = finalTicketRows.filter(
-          (t) => (t as { event_id: string }).event_id === event.id
+          (t) => (t as any).event_id === event.id
         ).length;
         if (count > 0) {
           await supabase

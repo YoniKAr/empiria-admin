@@ -48,9 +48,9 @@ export default async function OrdersPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.map((order: Record<string, unknown>) => {
-                const event = order.event as { title?: string } | null;
-                const buyer = order.buyer as { full_name?: string; email?: string } | null;
+              {orders.map((order: any) => {
+                const event = order.event as any;
+                const buyer = order.buyer as any;
                 return (
                   <tr key={order.id as string} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3">

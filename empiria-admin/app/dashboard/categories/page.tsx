@@ -53,7 +53,7 @@ export default async function CategoriesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {categories.map((cat: Record<string, unknown>) => (
+              {categories.map((cat: any) => (
                 <tr key={cat.id as string} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900">{cat.name as string}</td>
                   <td className="px-6 py-4 font-mono text-xs text-slate-500">{cat.slug as string}</td>

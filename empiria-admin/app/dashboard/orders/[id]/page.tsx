@@ -19,8 +19,8 @@ export default async function OrderDetailPage(props: {
   }
 
   const { order, items, tickets } = data;
-  const event = order.event as Record<string, unknown> | null;
-  const buyer = order.buyer as Record<string, unknown> | null;
+  const event = order.event as any;
+  const buyer = order.buyer as any;
 
   return (
     <div className="space-y-6">
@@ -118,8 +118,8 @@ export default async function OrderDetailPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map((item: Record<string, unknown>) => {
-                const tier = item.tier as { name?: string } | null;
+              {items.map((item: any) => {
+                const tier = item.tier as any;
                 return (
                   <tr key={item.id as string}>
                     <td className="px-6 py-3 font-medium text-slate-900">{tier?.name ?? "Unknown"}</td>
@@ -148,7 +148,7 @@ export default async function OrderDetailPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tickets.map((t: Record<string, unknown>) => (
+              {tickets.map((t: any) => (
                 <tr key={t.id as string}>
                   <td className="px-6 py-3 font-mono text-xs text-slate-600">{(t.qr_code_secret as string).slice(0, 12)}…</td>
                   <td className="px-6 py-3 text-slate-900">{(t.attendee_name as string) ?? (t.attendee_email as string) ?? "—"}</td>

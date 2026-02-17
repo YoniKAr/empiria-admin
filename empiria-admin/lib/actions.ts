@@ -12,6 +12,8 @@ import type {
   RevenueDataPoint,
 } from "./types";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // ─── Helpers ───
 
 async function adminGuard() {
@@ -45,11 +47,12 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
       .is("deleted_at", null),
   ]);
 
-  const orders = ordersRes.data ?? [];
-  const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount), 0);
-  const platformFees = orders.reduce((sum, o) => sum + Number(o.platform_fee_amount), 0);
-  const totalTicketsSold = (eventsRes.data ?? []).reduce(
-    (sum, e) => sum + (e.total_tickets_sold ?? 0),
+  const orders: any[] = ordersRes.data ?? [];
+  const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount), 0);
+  const platformFees = orders.reduce((sum: number, o: any) => sum + Number(o.platform_fee_amount), 0);
+  const events: any[] = eventsRes.data ?? [];
+  const totalTicketsSold = events.reduce(
+    (sum: number, e: any) => sum + (e.total_tickets_sold ?? 0),
     0
   );
 
@@ -71,15 +74,16 @@ export async function getRevenueTimeSeries(days = 30): Promise<RevenueDataPoint[
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const { data: orders } = await supabase
+  const { data } = await supabase
     .from("orders")
     .select("total_amount, platform_fee_amount, created_at")
     .eq("status", "completed")
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: true });
 
+  const orders: any[] = data ?? [];
   const map = new Map<string, { revenue: number; platformFees: number; orders: number }>();
-  for (const o of orders ?? []) {
+  for (const o of orders) {
     const date = o.created_at.slice(0, 10);
     const existing = map.get(date) ?? { revenue: 0, platformFees: 0, orders: 0 };
     existing.revenue += Number(o.total_amount);
@@ -88,7 +92,7 @@ export async function getRevenueTimeSeries(days = 30): Promise<RevenueDataPoint[
     map.set(date, existing);
   }
 
-  return Array.from(map.entries()).map(([date, data]) => ({ date, ...data }));
+  return Array.from(map.entries()).map(([date, d]) => ({ date, ...d }));
 }
 
 // ═══════════════════════════════════════════
@@ -109,7 +113,7 @@ export async function getEvents(filters?: {
 
   let query = supabase
     .from("events")
-    .select("*, organizer:users!events_organizer_id_fkey(*)", { count: "exact" })
+    .select("*", { count: "exact" })
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -119,7 +123,26 @@ export async function getEvents(filters?: {
 
   const { data, count, error } = await query;
   if (error) throw new Error(error.message);
-  return { events: data ?? [], total: count ?? 0 };
+
+  const events: any[] = data ?? [];
+  const organizerIds = [...new Set(events.map((e: any) => e.organizer_id))];
+
+  let organizers: any[] = [];
+  if (organizerIds.length > 0) {
+    const { data: orgData } = await supabase
+      .from("users")
+      .select("auth0_id, full_name, email")
+      .in("auth0_id", organizerIds);
+    organizers = orgData ?? [];
+  }
+
+  const orgMap = new Map(organizers.map((o: any) => [o.auth0_id, o]));
+  const enriched = events.map((e: any) => ({
+    ...e,
+    organizer: orgMap.get(e.organizer_id) ?? null,
+  }));
+
+  return { events: enriched, total: count ?? 0 };
 }
 
 export async function getEventById(id: string) {
@@ -127,11 +150,7 @@ export async function getEventById(id: string) {
   const supabase = db();
 
   const [eventRes, tiersRes, ordersRes] = await Promise.all([
-    supabase
-      .from("events")
-      .select("*, organizer:users!events_organizer_id_fkey(*)")
-      .eq("id", id)
-      .single(),
+    supabase.from("events").select("*").eq("id", id).single(),
     supabase
       .from("ticket_tiers")
       .select("*")
@@ -146,7 +165,24 @@ export async function getEventById(id: string) {
   ]);
 
   if (eventRes.error) throw new Error(eventRes.error.message);
-  return { event: eventRes.data, tiers: tiersRes.data ?? [], orders: ordersRes.data ?? [] };
+
+  const event: any = eventRes.data;
+
+  let organizer: any = null;
+  if (event.organizer_id) {
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("auth0_id", event.organizer_id)
+      .single();
+    organizer = data;
+  }
+
+  return {
+    event: { ...event, organizer },
+    tiers: tiersRes.data ?? [],
+    orders: ordersRes.data ?? [],
+  };
 }
 
 export async function updateEventStatus(eventId: string, status: EventStatus) {
@@ -215,23 +251,39 @@ export async function getUserById(id: string) {
   const { data: user, error } = await supabase.from("users").select("*").eq("id", id).single();
   if (error) throw new Error(error.message);
 
+  const u: any = user;
+
   const [eventsRes, ordersRes] = await Promise.all([
     supabase
       .from("events")
       .select("*")
-      .eq("organizer_id", user.auth0_id)
+      .eq("organizer_id", u.auth0_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10),
     supabase
       .from("orders")
-      .select("*, event:events(id, title)")
-      .eq("user_id", user.auth0_id)
+      .select("*")
+      .eq("user_id", u.auth0_id)
       .order("created_at", { ascending: false })
       .limit(10),
   ]);
 
-  return { user, events: eventsRes.data ?? [], orders: ordersRes.data ?? [] };
+  const orders: any[] = ordersRes.data ?? [];
+  const eventIds = [...new Set(orders.map((o: any) => o.event_id))];
+  const eventTitles = new Map<string, string>();
+  if (eventIds.length > 0) {
+    const { data: evData } = await supabase.from("events").select("id, title").in("id", eventIds);
+    for (const e of (evData ?? []) as any[]) {
+      eventTitles.set(e.id, e.title);
+    }
+  }
+  const enrichedOrders = orders.map((o: any) => ({
+    ...o,
+    event: { id: o.event_id, title: eventTitles.get(o.event_id) ?? "Unknown" },
+  }));
+
+  return { user: u, events: eventsRes.data ?? [], orders: enrichedOrders };
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {
@@ -270,10 +322,7 @@ export async function getOrders(filters?: {
 
   let query = supabase
     .from("orders")
-    .select(
-      "*, event:events(id, title, slug), buyer:users!orders_user_id_fkey(id, full_name, email)",
-      { count: "exact" }
-    )
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -286,25 +335,67 @@ export async function getOrders(filters?: {
 
   const { data, count, error } = await query;
   if (error) throw new Error(error.message);
-  return { orders: data ?? [], total: count ?? 0 };
+
+  const orders: any[] = data ?? [];
+
+  const eventIds = [...new Set(orders.map((o: any) => o.event_id))];
+  const userIds = [...new Set(orders.map((o: any) => o.user_id))];
+
+  const eventMap = new Map<string, any>();
+  const buyerMap = new Map<string, any>();
+
+  if (eventIds.length > 0) {
+    const { data: evData } = await supabase.from("events").select("id, title, slug").in("id", eventIds);
+    for (const e of (evData ?? []) as any[]) eventMap.set(e.id, e);
+  }
+  if (userIds.length > 0) {
+    const { data: uData } = await supabase.from("users").select("id, auth0_id, full_name, email").in("auth0_id", userIds);
+    for (const u of (uData ?? []) as any[]) buyerMap.set(u.auth0_id, u);
+  }
+
+  const enriched = orders.map((o: any) => ({
+    ...o,
+    event: eventMap.get(o.event_id) ?? null,
+    buyer: buyerMap.get(o.user_id) ?? null,
+  }));
+
+  return { orders: enriched, total: count ?? 0 };
 }
 
 export async function getOrderById(id: string) {
   await adminGuard();
   const supabase = db();
 
-  const [orderRes, itemsRes, ticketsRes] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("*, event:events(*), buyer:users!orders_user_id_fkey(*)")
-      .eq("id", id)
-      .single(),
-    supabase.from("order_items").select("*, tier:ticket_tiers(*)").eq("order_id", id),
+  const { data: order, error } = await supabase.from("orders").select("*").eq("id", id).single();
+  if (error) throw new Error(error.message);
+
+  const o: any = order;
+
+  const [eventRes, buyerRes, itemsRes, ticketsRes] = await Promise.all([
+    supabase.from("events").select("*").eq("id", o.event_id).single(),
+    supabase.from("users").select("*").eq("auth0_id", o.user_id).single(),
+    supabase.from("order_items").select("*").eq("order_id", id),
     supabase.from("tickets").select("*").eq("order_id", id),
   ]);
 
-  if (orderRes.error) throw new Error(orderRes.error.message);
-  return { order: orderRes.data, items: itemsRes.data ?? [], tickets: ticketsRes.data ?? [] };
+  const items: any[] = itemsRes.data ?? [];
+  const tierIds = [...new Set(items.map((i: any) => i.tier_id))];
+  const tierMap = new Map<string, any>();
+  if (tierIds.length > 0) {
+    const { data: tData } = await supabase.from("ticket_tiers").select("*").in("id", tierIds);
+    for (const t of (tData ?? []) as any[]) tierMap.set(t.id, t);
+  }
+  const enrichedItems = items.map((i: any) => ({ ...i, tier: tierMap.get(i.tier_id) ?? null }));
+
+  return {
+    order: {
+      ...o,
+      event: eventRes.data ?? null,
+      buyer: buyerRes.data ?? null,
+    },
+    items: enrichedItems,
+    tickets: ticketsRes.data ?? [],
+  };
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {
@@ -333,9 +424,7 @@ export async function getTickets(filters?: {
 
   let query = supabase
     .from("tickets")
-    .select("*, event:events(id, title), tier:ticket_tiers(id, name, price, currency)", {
-      count: "exact",
-    })
+    .select("*", { count: "exact" })
     .order("purchase_date", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -348,7 +437,31 @@ export async function getTickets(filters?: {
 
   const { data, count, error } = await query;
   if (error) throw new Error(error.message);
-  return { tickets: data ?? [], total: count ?? 0 };
+
+  const tickets: any[] = data ?? [];
+
+  const eventIds = [...new Set(tickets.map((t: any) => t.event_id))];
+  const tierIds = [...new Set(tickets.map((t: any) => t.tier_id))];
+
+  const eventMap = new Map<string, any>();
+  const tierMap = new Map<string, any>();
+
+  if (eventIds.length > 0) {
+    const { data: evData } = await supabase.from("events").select("id, title").in("id", eventIds);
+    for (const e of (evData ?? []) as any[]) eventMap.set(e.id, e);
+  }
+  if (tierIds.length > 0) {
+    const { data: tData } = await supabase.from("ticket_tiers").select("id, name, price, currency").in("id", tierIds);
+    for (const t of (tData ?? []) as any[]) tierMap.set(t.id, t);
+  }
+
+  const enriched = tickets.map((t: any) => ({
+    ...t,
+    event: eventMap.get(t.event_id) ?? null,
+    tier: tierMap.get(t.tier_id) ?? null,
+  }));
+
+  return { tickets: enriched, total: count ?? 0 };
 }
 
 export async function updateTicketStatus(ticketId: string, status: TicketStatus) {
@@ -389,14 +502,23 @@ export async function toggleCategoryActive(categoryId: string, isActive: boolean
 
 export async function getRevenueByEvent() {
   await adminGuard();
-  const { data, error } = await db()
+  const supabase = db();
+
+  const { data, error } = await supabase
     .from("orders")
-    .select(
-      "event_id, total_amount, platform_fee_amount, organizer_payout_amount, currency, event:events(id, title, organizer_id)"
-    )
+    .select("event_id, total_amount, platform_fee_amount, organizer_payout_amount, currency")
     .eq("status", "completed");
 
   if (error) throw new Error(error.message);
+
+  const orders: any[] = data ?? [];
+
+  const eventIds = [...new Set(orders.map((o: any) => o.event_id))];
+  const eventMap = new Map<string, any>();
+  if (eventIds.length > 0) {
+    const { data: evData } = await supabase.from("events").select("id, title, organizer_id").in("id", eventIds);
+    for (const e of (evData ?? []) as any[]) eventMap.set(e.id, e);
+  }
 
   const map = new Map<
     string,
@@ -412,8 +534,8 @@ export async function getRevenueByEvent() {
     }
   >();
 
-  for (const row of data ?? []) {
-    const event = row.event as { id: string; title: string; organizer_id: string } | null;
+  for (const row of orders) {
+    const event = eventMap.get(row.event_id);
     const existing = map.get(row.event_id) ?? {
       eventId: row.event_id,
       eventTitle: event?.title ?? "Unknown",

@@ -112,8 +112,8 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recentOrders.orders.map((order: Record<string, unknown>) => {
-                const event = order.event as { title?: string } | null;
+              {recentOrders.orders.map((order: any) => {
+                const event = order.event as any;
                 return (
                   <tr key={order.id as string} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-slate-600">

@@ -48,9 +48,9 @@ export default async function TicketsPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tickets.map((ticket: Record<string, unknown>) => {
-                const event = ticket.event as { id?: string; title?: string } | null;
-                const tier = ticket.tier as { name?: string; price?: number; currency?: string } | null;
+              {tickets.map((ticket: any) => {
+                const event = ticket.event as any;
+                const tier = ticket.tier as any;
                 return (
                   <tr key={ticket.id as string} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-3 font-mono text-xs text-slate-600">{(ticket.qr_code_secret as string).slice(0, 12)}…</td>

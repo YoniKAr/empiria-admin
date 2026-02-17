@@ -55,9 +55,9 @@ export default async function EventsPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {events.map((event: Record<string, unknown>) => {
-                const organizer = event.organizer as { full_name?: string; email?: string } | null;
-                const capacity = (event.total_capacity as number) === 0 ? "∞" : String(event.total_capacity);
+              {events.map((event: any) => {
+                const organizer = event.organizer;
+                const capacity = event.total_capacity === 0 ? "∞" : String(event.total_capacity);
                 return (
                   <tr key={event.id as string} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">

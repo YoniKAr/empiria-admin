@@ -118,7 +118,7 @@ export default async function UserDetailPage(props: {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {events.map((e: Record<string, unknown>) => (
+                {events.map((e: any) => (
                   <tr key={e.id as string} className="hover:bg-slate-50">
                     <td className="px-6 py-3">
                       <Link href={`/dashboard/events/${e.id}`} className="text-indigo-600 hover:text-indigo-700 font-medium">{e.title as string}</Link>
@@ -151,8 +151,8 @@ export default async function UserDetailPage(props: {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map((o: Record<string, unknown>) => {
-                  const event = o.event as { title?: string } | null;
+                {orders.map((o: any) => {
+                  const event = o.event as any;
                   return (
                     <tr key={o.id as string} className="hover:bg-slate-50">
                       <td className="px-6 py-3">

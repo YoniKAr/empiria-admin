@@ -23,7 +23,7 @@ export default async function EventDetailPage(props: {
   }
 
   const { event, tiers, orders } = data;
-  const organizer = event.organizer as Record<string, unknown> | null;
+  const organizer = event.organizer as any;
   const organizerAppUrl = process.env.NEXT_PUBLIC_ORGANIZER_APP_URL;
 
   return (
@@ -146,7 +146,7 @@ export default async function EventDetailPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tiers.map((tier: Record<string, unknown>) => (
+              {tiers.map((tier: any) => (
                 <tr key={tier.id as string}>
                   <td className="px-6 py-3 font-medium text-slate-900">{tier.name as string}</td>
                   <td className="px-6 py-3 text-slate-900">{formatCurrency(Number(tier.price), tier.currency as string)}</td>
@@ -182,7 +182,7 @@ export default async function EventDetailPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.map((o: Record<string, unknown>) => (
+              {orders.map((o: any) => (
                 <tr key={o.id as string} className="hover:bg-slate-50">
                   <td className="px-6 py-3">
                     <Link href={`/dashboard/orders/${o.id}`} className="font-mono text-xs text-indigo-600 hover:text-indigo-700">

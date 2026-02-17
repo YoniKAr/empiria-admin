@@ -47,7 +47,7 @@ export default async function UsersPage(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {users.map((user: Record<string, unknown>) => (
+              {users.map((user: any) => (
                 <tr key={user.id as string} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <Link href={`/dashboard/users/${user.id}`} className="font-medium text-slate-900 hover:text-indigo-600">

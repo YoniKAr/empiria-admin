@@ -75,7 +75,7 @@ export default async function EventsPage(props: {
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={event.status as string} /></td>
                     <td className="px-6 py-4">
-                      {event.is_featured && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                      {Boolean(event.is_featured) && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
                     </td>
                     <td className="px-6 py-4">
                       <Link href={`/dashboard/events/${event.id}`} className="text-indigo-600 hover:text-indigo-700">

@@ -45,7 +45,7 @@ export default function RevenueChart({ data }: { data: RevenueDataPoint[] }) {
           <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} />
           <Tooltip
             contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", fontSize: "13px" }}
-            formatter=(value: number | undefined, name: string) => [
+            formatter={(value: number | undefined, name: string) => [
               `$${(value ?? 0).toFixed(2)}`,
               name === "revenue" ? "Total Revenue" : "Platform Fees",
             ]}

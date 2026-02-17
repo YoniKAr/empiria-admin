@@ -37,7 +37,7 @@ export default function RevenueChart({ data }: { data: RevenueDataPoint[] }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis
             dataKey="date"
-            tickFormatter={(d: string) =>
+            tickFormatter={(d: any) =>
               new Date(d).toLocaleDateString("en-CA", { month: "short", day: "numeric" })
             }
             tick={{ fontSize: 12, fill: "#94a3b8" }}
@@ -45,11 +45,12 @@ export default function RevenueChart({ data }: { data: RevenueDataPoint[] }) {
           <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} />
           <Tooltip
             contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", fontSize: "13px" }}
-            formatter={(value: number | undefined, name: string) => [
-              `$${(value ?? 0).toFixed(2)}`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={((value: any, name: any) => [
+              `$${Number(value ?? 0).toFixed(2)}`,
               name === "revenue" ? "Total Revenue" : "Platform Fees",
-            ]}
-            labelFormatter={(label: string) =>
+            ]) as any}
+            labelFormatter={(label: any) =>
               new Date(label).toLocaleDateString("en-CA", {
                 month: "long",
                 day: "numeric",

@@ -67,7 +67,7 @@ export default async function EventsPage(props: {
                       <p className="text-xs text-slate-400 mt-0.5">{(event.city as string) ?? "Online"} · {event.currency as string}</p>
                     </td>
                     <td className="px-6 py-4 text-slate-600">{organizer?.full_name ?? organizer?.email ?? "—"}</td>
-                    <td className="px-6 py-4 text-slate-600">{formatDate(event.start_at as string)}</td>
+                    <td className="px-6 py-4 text-slate-600">{event.first_occurrence ? formatDate(event.first_occurrence.starts_at as string) : '—'}</td>
                     <td className="px-6 py-4 text-slate-600">{event.total_tickets_sold as number} / {capacity}</td>
                     <td className="px-6 py-4 text-slate-600">
                       {Number(event.platform_fee_percent)}%

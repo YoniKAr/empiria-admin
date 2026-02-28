@@ -25,7 +25,7 @@ export default async function EventDetailPage(props: {
     notFound();
   }
 
-  const { event, tiers, orders } = data;
+  const { event, tiers, orders, occurrences } = data;
   const organizer = event.organizer as any;
   const organizerAppUrl = process.env.NEXT_PUBLIC_ORGANIZER_APP_URL;
 
@@ -76,7 +76,9 @@ export default async function EventDetailPage(props: {
             {event.is_featured && <Star className="w-5 h-5 text-amber-500 fill-amber-500" />}
           </div>
           <p className="text-slate-500 text-sm mt-1">
-            {event.venue_name ?? "Online"} · {event.city ?? ""} · {formatDate(event.start_at)} – {formatDate(event.end_at)}
+            {event.venue_name ?? "Online"} · {event.city ?? ""} · {occurrences.length > 0
+              ? `${formatDate((occurrences as any[])[0].starts_at)}${occurrences.length > 1 ? ` (+${occurrences.length - 1} more)` : ''}`
+              : 'No dates set'}
           </p>
         </div>
         {organizer && (
@@ -191,6 +193,47 @@ export default async function EventDetailPage(props: {
               ))}
               {tiers.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No ticket tiers defined.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Occurrences */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-900">Occurrences ({occurrences.length})</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Time</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Label</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {(occurrences as any[]).map((occ: any) => {
+                const start = new Date(occ.starts_at);
+                const end = new Date(occ.ends_at);
+                const isPast = end < new Date();
+                return (
+                  <tr key={occ.id as string} className="hover:bg-slate-50">
+                    <td className="px-6 py-3 text-slate-900">{formatDate(occ.starts_at)}</td>
+                    <td className="px-6 py-3 text-slate-600">
+                      {start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – {end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </td>
+                    <td className="px-6 py-3 text-slate-600">{occ.label || '—'}</td>
+                    <td className="px-6 py-3">
+                      <StatusBadge status={occ.is_cancelled ? 'cancelled' : isPast ? 'completed' : 'published'} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {occurrences.length === 0 && (
+                <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No occurrences defined.</td></tr>
               )}
             </tbody>
           </table>

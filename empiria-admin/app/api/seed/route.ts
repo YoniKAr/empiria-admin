@@ -97,8 +97,8 @@ export async function GET() {
         title: "Toronto Jazz Festival 2026",
         slug: "toronto-jazz-festival-2026",
         category_id: catMap.get("music"),
-        start_at: daysFromNow(30),
-        end_at: daysFromNow(32),
+        sales_start_at: daysAgo(30),
+        sales_end_at: daysFromNow(30),
         venue_name: "Nathan Phillips Square",
         city: "Toronto",
         status: "published",
@@ -113,8 +113,8 @@ export async function GET() {
         title: "Startup Pitch Night - Vancouver",
         slug: "startup-pitch-night-vancouver",
         category_id: catMap.get("business"),
-        start_at: daysFromNow(14),
-        end_at: daysFromNow(14),
+        sales_start_at: daysAgo(14),
+        sales_end_at: daysFromNow(14),
         venue_name: "Convention Centre West",
         city: "Vancouver",
         status: "published",
@@ -128,8 +128,8 @@ export async function GET() {
         title: "AI & Machine Learning Summit",
         slug: "ai-ml-summit-sf",
         category_id: catMap.get("technology"),
-        start_at: daysFromNow(45),
-        end_at: daysFromNow(46),
+        sales_start_at: daysAgo(10),
+        sales_end_at: daysFromNow(45),
         venue_name: "Moscone Center",
         city: "San Francisco",
         status: "published",
@@ -144,8 +144,8 @@ export async function GET() {
         title: "Street Food Festival SF",
         slug: "street-food-festival-sf",
         category_id: catMap.get("food---drink"),
-        start_at: daysAgo(10),
-        end_at: daysAgo(9),
+        sales_start_at: daysAgo(40),
+        sales_end_at: daysAgo(10),
         venue_name: "Ferry Building",
         city: "San Francisco",
         status: "completed",
@@ -159,8 +159,8 @@ export async function GET() {
         title: "Mumbai Tech Meetup",
         slug: "mumbai-tech-meetup",
         category_id: catMap.get("technology"),
-        start_at: daysFromNow(7),
-        end_at: daysFromNow(7),
+        sales_start_at: daysAgo(7),
+        sales_end_at: daysFromNow(7),
         venue_name: "BKC Tech Hub",
         city: "Mumbai",
         status: "published",
@@ -174,8 +174,8 @@ export async function GET() {
         title: "Delhi Food Crawl",
         slug: "delhi-food-crawl",
         category_id: catMap.get("food---drink"),
-        start_at: daysFromNow(20),
-        end_at: daysFromNow(20),
+        sales_start_at: daysAgo(5),
+        sales_end_at: daysFromNow(20),
         venue_name: "Chandni Chowk",
         city: "Delhi",
         status: "draft",
@@ -189,8 +189,8 @@ export async function GET() {
         title: "Cancelled Yoga Retreat",
         slug: "cancelled-yoga-retreat",
         category_id: catMap.get("health---wellness"),
-        start_at: daysFromNow(60),
-        end_at: daysFromNow(62),
+        sales_start_at: daysAgo(5),
+        sales_end_at: daysFromNow(60),
         venue_name: "Banff Springs",
         city: "Banff",
         status: "cancelled",
@@ -207,6 +207,47 @@ export async function GET() {
       .select();
 
     const eventMap = new Map((events ?? []).map((e: any) => [e.slug, e]));
+
+    // ─── Event Occurrences ───
+    const occurrenceRows: any[] = [];
+    const occurrenceData: Record<string, Array<{ starts_at: string; ends_at: string; label: string }>> = {
+      "toronto-jazz-festival-2026": [
+        { starts_at: daysFromNow(30), ends_at: daysFromNow(30.5), label: "Day 1" },
+        { starts_at: daysFromNow(31), ends_at: daysFromNow(31.5), label: "Day 2" },
+        { starts_at: daysFromNow(32), ends_at: daysFromNow(32.5), label: "Day 3" },
+      ],
+      "startup-pitch-night-vancouver": [
+        { starts_at: daysFromNow(14), ends_at: daysFromNow(14.25), label: "Pitch Night" },
+      ],
+      "ai-ml-summit-sf": [
+        { starts_at: daysFromNow(45), ends_at: daysFromNow(45.5), label: "Day 1" },
+        { starts_at: daysFromNow(46), ends_at: daysFromNow(46.5), label: "Day 2" },
+      ],
+      "street-food-festival-sf": [
+        { starts_at: daysAgo(10), ends_at: daysAgo(9.5), label: "Festival Day 1" },
+        { starts_at: daysAgo(9), ends_at: daysAgo(8.5), label: "Festival Day 2" },
+      ],
+      "mumbai-tech-meetup": [
+        { starts_at: daysFromNow(7), ends_at: daysFromNow(7.25), label: "Meetup" },
+      ],
+      "delhi-food-crawl": [
+        { starts_at: daysFromNow(20), ends_at: daysFromNow(20.25), label: "Food Crawl" },
+      ],
+      "cancelled-yoga-retreat": [
+        { starts_at: daysFromNow(60), ends_at: daysFromNow(62), label: "Retreat Weekend" },
+      ],
+    };
+    for (const [slug, occs] of Object.entries(occurrenceData)) {
+      const ev = eventMap.get(slug);
+      if (!ev) continue;
+      for (const occ of occs) {
+        occurrenceRows.push({ event_id: (ev as any).id, ...occ });
+      }
+    }
+    // Delete existing occurrences for these events to avoid duplicates
+    const allEventIds = Array.from(eventMap.values()).map((e: any) => e.id);
+    await supabase.from("event_occurrences").delete().in("event_id", allEventIds);
+    await supabase.from("event_occurrences").insert(occurrenceRows);
 
     // ─── Ticket Tiers ───
     const tierRows: any[] = [];

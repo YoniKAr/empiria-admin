@@ -137,9 +137,28 @@ export async function getEvents(filters?: {
   }
 
   const orgMap = new Map(organizers.map((o: any) => [o.auth0_id, o]));
+
+  // Batch-fetch first occurrence per event for display
+  const eventIds = events.map((e: any) => e.id);
+  const occurrenceMap = new Map<string, any>();
+  if (eventIds.length > 0) {
+    const { data: occData } = await supabase
+      .from("event_occurrences")
+      .select("event_id, starts_at")
+      .in("event_id", eventIds)
+      .eq("is_cancelled", false)
+      .order("starts_at", { ascending: true });
+    for (const occ of (occData ?? []) as any[]) {
+      if (!occurrenceMap.has(occ.event_id)) {
+        occurrenceMap.set(occ.event_id, occ);
+      }
+    }
+  }
+
   const enriched = events.map((e: any) => ({
     ...e,
     organizer: orgMap.get(e.organizer_id) ?? null,
+    first_occurrence: occurrenceMap.get(e.id) ?? null,
   }));
 
   return { events: enriched, total: count ?? 0 };
@@ -149,7 +168,7 @@ export async function getEventById(id: string) {
   await adminGuard();
   const supabase = db();
 
-  const [eventRes, tiersRes, ordersRes] = await Promise.all([
+  const [eventRes, tiersRes, ordersRes, occurrencesRes] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).single(),
     supabase
       .from("ticket_tiers")
@@ -162,6 +181,11 @@ export async function getEventById(id: string) {
       .eq("event_id", id)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("event_occurrences")
+      .select("*")
+      .eq("event_id", id)
+      .order("starts_at", { ascending: true }),
   ]);
 
   if (eventRes.error) throw new Error(eventRes.error.message);
@@ -182,6 +206,7 @@ export async function getEventById(id: string) {
     event: { ...event, organizer },
     tiers: tiersRes.data ?? [],
     orders: ordersRes.data ?? [],
+    occurrences: occurrencesRes.data ?? [],
   };
 }
 
@@ -283,7 +308,29 @@ export async function getUserById(id: string) {
     event: { id: o.event_id, title: eventTitles.get(o.event_id) ?? "Unknown" },
   }));
 
-  return { user: u, events: eventsRes.data ?? [], orders: enrichedOrders };
+  // Batch-fetch first occurrence per event
+  const userEvents: any[] = eventsRes.data ?? [];
+  const userEventIds = userEvents.map((e: any) => e.id);
+  const occMap = new Map<string, any>();
+  if (userEventIds.length > 0) {
+    const { data: occData } = await supabase
+      .from("event_occurrences")
+      .select("event_id, starts_at")
+      .in("event_id", userEventIds)
+      .eq("is_cancelled", false)
+      .order("starts_at", { ascending: true });
+    for (const occ of (occData ?? []) as any[]) {
+      if (!occMap.has(occ.event_id)) {
+        occMap.set(occ.event_id, occ);
+      }
+    }
+  }
+  const enrichedEvents = userEvents.map((e: any) => ({
+    ...e,
+    first_occurrence: occMap.get(e.id) ?? null,
+  }));
+
+  return { user: u, events: enrichedEvents, orders: enrichedOrders };
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {

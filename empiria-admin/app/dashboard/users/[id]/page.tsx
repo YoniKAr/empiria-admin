@@ -123,7 +123,7 @@ export default async function UserDetailPage(props: {
                     <td className="px-6 py-3">
                       <Link href={`/dashboard/events/${e.id}`} className="text-indigo-600 hover:text-indigo-700 font-medium">{e.title as string}</Link>
                     </td>
-                    <td className="px-6 py-3 text-slate-600">{formatDate(e.start_at as string)}</td>
+                    <td className="px-6 py-3 text-slate-600">{e.first_occurrence ? formatDate(e.first_occurrence.starts_at as string) : '—'}</td>
                     <td className="px-6 py-3"><StatusBadge status={e.status as string} /></td>
                     <td className="px-6 py-3 text-slate-600">{e.total_tickets_sold as number}</td>
                   </tr>

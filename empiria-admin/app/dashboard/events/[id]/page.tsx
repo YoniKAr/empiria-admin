@@ -5,10 +5,13 @@ import {
   updateEventStatus,
   toggleEventFeatured,
 } from "@/lib/actions";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/utils";
 import StatusBadge from "@/components/StatusBadge";
 import type { EventStatus } from "@/lib/types";
 import { ArrowLeft, Star, Ban, CheckCircle, Eye } from "lucide-react";
+import { IssueTicketsModal } from "./IssueTicketsModal";
+import { AdminTicketTable } from "./AdminTicketTable";
 
 export default async function EventDetailPage(props: {
   params: Promise<{ id: string }>;
@@ -25,6 +28,34 @@ export default async function EventDetailPage(props: {
   const { event, tiers, orders } = data;
   const organizer = event.organizer as any;
   const organizerAppUrl = process.env.NEXT_PUBLIC_ORGANIZER_APP_URL;
+
+  // Fetch tickets for this event with tier names
+  const supabase = getSupabaseAdmin();
+  const { data: ticketsRaw } = await supabase
+    .from("tickets")
+    .select("id, attendee_name, attendee_email, status, tier_id, order_id, created_at")
+    .eq("event_id", id)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const tierMap = new Map((tiers as any[]).map((t: any) => [t.id, t.name]));
+  const tickets = (ticketsRaw || []).map((t: any) => ({
+    id: t.id as string,
+    attendee_name: t.attendee_name as string | null,
+    attendee_email: t.attendee_email as string | null,
+    status: t.status as string,
+    tier_name: (tierMap.get(t.tier_id) || "Unknown") as string,
+    order_id: t.order_id as string,
+    created_at: t.created_at as string,
+  }));
+
+  const tierOptions = (tiers as any[]).map((t: any) => ({
+    id: t.id as string,
+    name: t.name as string,
+    price: Number(t.price),
+    currency: (t.currency as string) || event.currency,
+    remaining: t.remaining_quantity as number,
+  }));
 
   return (
     <div className="space-y-6">
@@ -131,8 +162,9 @@ export default async function EventDetailPage(props: {
 
       {/* Ticket Tiers */}
       <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">Ticket Tiers</h2>
+          {tierOptions.length > 0 && <IssueTicketsModal eventId={id} tiers={tierOptions} />}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -163,6 +195,14 @@ export default async function EventDetailPage(props: {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Tickets */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-900">Tickets ({tickets.length})</h2>
+        </div>
+        <AdminTicketTable tickets={tickets} />
       </div>
 
       {/* Recent Orders for this event */}

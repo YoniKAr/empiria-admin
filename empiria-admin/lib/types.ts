@@ -39,8 +39,8 @@ export interface Event {
   tags: string[] | null;
   cover_image_url: string | null;
   gallery_images: string[] | null;
-  start_at: string;
-  end_at: string;
+  sales_start_at: string | null;
+  sales_end_at: string | null;
   location_type: string;
   venue_name: string | null;
   address_text: string | null;

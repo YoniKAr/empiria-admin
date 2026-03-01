@@ -232,7 +232,7 @@ export async function adminSendTicketsToEmail(input: {
   const eventIds = [...new Set(validTickets.map((t) => t.event_id))];
   const { data: events } = await supabase
     .from("events")
-    .select("id, title, start_at, end_at, venue_name, city, currency")
+    .select("id, title, venue_name, city, currency")
     .in("id", eventIds);
 
   if (!events || events.length === 0) return { success: false, error: "Event not found" };
@@ -242,6 +242,17 @@ export async function adminSendTicketsToEmail(input: {
   const tierMap = new Map((tiers || []).map((t) => [t.id, t.name]));
 
   const event = events[0];
+
+  // Fetch first occurrence for email date
+  const { data: firstOcc } = await supabase
+    .from("event_occurrences")
+    .select("starts_at, ends_at")
+    .eq("event_id", event.id)
+    .eq("is_cancelled", false)
+    .order("starts_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
   const ticketInfos = validTickets.map((t) => ({
     id: t.id,
     qr_code_secret: t.qr_code_secret,
@@ -254,8 +265,8 @@ export async function adminSendTicketsToEmail(input: {
       attendeeName: input.recipientName,
       tickets: ticketInfos,
       eventTitle: event.title,
-      eventDate: event.start_at,
-      eventEndDate: event.end_at || undefined,
+      eventDate: firstOcc?.starts_at || "",
+      eventEndDate: firstOcc?.ends_at || undefined,
       venueName: event.venue_name || "",
       city: event.city || "",
     });

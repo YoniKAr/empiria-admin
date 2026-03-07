@@ -12,6 +12,7 @@ import type { EventStatus } from "@/lib/types";
 import { ArrowLeft, Star, Ban, CheckCircle, Eye } from "lucide-react";
 import { IssueTicketsModal } from "./IssueTicketsModal";
 import { AdminTicketTable } from "./AdminTicketTable";
+import { SeatmapSection } from "./SeatmapSection";
 
 export default async function EventDetailPage(props: {
   params: Promise<{ id: string }>;
@@ -161,6 +162,11 @@ export default async function EventDetailPage(props: {
           )}
         </div>
       </div>
+
+      {/* Seating Map */}
+      {event.seating_type !== "general_admission" && (
+        <SeatmapSection event={event} tiers={tiers as any[]} />
+      )}
 
       {/* Ticket Tiers */}
       <div className="bg-white rounded-xl border border-slate-200">

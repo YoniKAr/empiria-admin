@@ -10,6 +10,7 @@ import {
   Ticket,
   DollarSign,
   FolderOpen,
+  LayoutTemplate,
   LogOut,
   Shield,
   ChevronLeft,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/tickets", label: "Tickets", icon: Ticket },
   { href: "/dashboard/revenue", label: "Revenue", icon: DollarSign },
   { href: "/dashboard/categories", label: "Categories", icon: FolderOpen },
+  { href: "/dashboard/templates", label: "Templates", icon: LayoutTemplate },
 ];
 
 export default function Sidebar({ adminName }: { adminName: string }) {

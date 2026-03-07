@@ -7,6 +7,7 @@ import type {
   ZoneDefinition,
   SectionDefinition,
 } from "@/lib/seatmap-types";
+import { migrateSeatingConfig } from "@/lib/migrate-seating-config";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -51,9 +52,11 @@ export function SeatmapViewer({
     fabricRef.current = canvas;
 
     async function render() {
-      if (seatingConfig.image_url) {
+      const config = migrateSeatingConfig(seatingConfig);
+
+      if (config.image_url) {
         try {
-          const img = await FabricImage.fromURL(seatingConfig.image_url);
+          const img = await FabricImage.fromURL(config.image_url);
           const scale = Math.min(
             CANVAS_WIDTH / img.width!,
             CANVAS_HEIGHT / img.height!
@@ -73,14 +76,14 @@ export function SeatmapViewer({
         }
       }
 
-      if (seatingConfig.zones) {
-        for (const zone of seatingConfig.zones) {
+      if (config.zones) {
+        for (const zone of config.zones) {
           renderZone(canvas, zone);
         }
       }
 
-      if (seatingConfig.sections) {
-        for (const section of seatingConfig.sections) {
+      if (config.sections) {
+        for (const section of config.sections) {
           renderSection(canvas, section, soldSeatIds, heldSeatIds);
         }
       }
@@ -140,35 +143,49 @@ export function SeatmapViewer({
   );
 }
 
-function renderZone(canvas: Canvas, zone: ZoneDefinition) {
-  if (zone.points.length < 3) return;
-
-  const polygon = new Polygon(
-    zone.points.map(([x, y]) => ({ x, y })),
-    {
-      fill: zone.color + "30",
-      stroke: zone.color,
-      strokeWidth: 2,
-      selectable: false,
-      evented: true,
-    }
+function getPolygonCenter(points: [number, number][]): { x: number; y: number } {
+  const sum = points.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+    { x: 0, y: 0 }
   );
-  (polygon as any)._customData = { zoneName: zone.name };
-  canvas.add(polygon);
+  return { x: sum.x / points.length, y: sum.y / points.length };
+}
 
-  const bounds = polygon.getBoundingRect();
-  const label = new FabricText(zone.name, {
-    left: bounds.left + bounds.width / 2,
-    top: bounds.top + bounds.height / 2,
-    fontSize: 12,
-    fill: zone.color,
-    fontWeight: "bold",
-    originX: "center",
-    originY: "center",
-    selectable: false,
-    evented: false,
-  });
-  canvas.add(label);
+function renderZone(canvas: Canvas, zone: ZoneDefinition) {
+  for (const polygon of zone.polygons) {
+    if (polygon.points.length < 3) continue;
+
+    const poly = new Polygon(
+      polygon.points.map(([x, y]) => ({ x, y })),
+      {
+        fill: zone.color + "30",
+        stroke: zone.color,
+        strokeWidth: 2,
+        selectable: false,
+        evented: true,
+      }
+    );
+    (poly as any)._customData = { zoneName: zone.name };
+    canvas.add(poly);
+  }
+
+  // Add zone label at center of first polygon
+  if (zone.polygons.length > 0 && zone.polygons[0].points.length >= 3) {
+    const firstPoly = zone.polygons[0];
+    const center = getPolygonCenter(firstPoly.points);
+    const label = new FabricText(zone.name, {
+      left: center.x,
+      top: center.y,
+      fontSize: 12,
+      fill: zone.color,
+      fontWeight: "bold",
+      originX: "center",
+      originY: "center",
+      selectable: false,
+      evented: false,
+    });
+    canvas.add(label);
+  }
 }
 
 function renderSection(
@@ -224,5 +241,18 @@ function renderSection(
     });
     (circle as any)._customData = { seatLabel: seat.label, seatStatus: status };
     canvas.add(circle);
+
+    const seatLabel = new FabricText(seat.label, {
+      left: seat.x,
+      top: seat.y,
+      fontSize: 7,
+      fontFamily: "system-ui, sans-serif",
+      fill: "#ffffff",
+      originX: "center",
+      originY: "center",
+      selectable: false,
+      evented: false,
+    });
+    canvas.add(seatLabel);
   }
 }

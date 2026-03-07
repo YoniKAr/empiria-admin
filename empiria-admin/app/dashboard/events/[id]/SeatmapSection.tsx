@@ -1,7 +1,8 @@
 "use client";
 
 import { SeatmapViewer } from "@/components/seatmap/SeatmapViewer";
-import type { SeatingConfig } from "@/lib/seatmap-types";
+import type { SeatingConfig, SeatRange } from "@/lib/seatmap-types";
+import { migrateSeatingConfig } from "@/lib/migrate-seating-config";
 
 interface SeatmapSectionProps {
   event: {
@@ -17,10 +18,10 @@ interface SeatmapSectionProps {
 }
 
 export function SeatmapSection({ event, tiers }: SeatmapSectionProps) {
-  const config = event.seating_config as unknown as SeatingConfig;
+  const config = migrateSeatingConfig(event.seating_config as any);
 
   // Don't render if no seating config data
-  if (!config || (!config.zones && !config.sections)) {
+  if (!config || (!config.zones && !config.sections && !config.seat_ranges)) {
     return null;
   }
 
@@ -35,9 +36,10 @@ export function SeatmapSection({ event, tiers }: SeatmapSectionProps) {
   );
   const utilization = totalSeats > 0 ? Math.round((soldSeats / totalSeats) * 100) : 0;
 
+  const hasRanges = config.seat_ranges && config.seat_ranges.length > 0;
   const seatingLabel =
     event.seating_type === "reserved_seating_list"
-      ? "Zone Map"
+      ? hasRanges ? "Assigned Seating" : "Zone Map"
       : event.seating_type === "seatmap_pro"
         ? "Seat Map"
         : event.seating_type;
@@ -78,9 +80,38 @@ export function SeatmapSection({ event, tiers }: SeatmapSectionProps) {
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden bg-slate-50">
-        <SeatmapViewer seatingConfig={config} />
-      </div>
+      {event.seating_type === "reserved_seating_list" && hasRanges ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span>{config.allow_seat_choice ? "Customers can choose seats" : "Seats auto-assigned"}</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-slate-500">
+                <th className="py-2 font-medium">Prefix</th>
+                <th className="py-2 font-medium">Range</th>
+                <th className="py-2 font-medium">Seats</th>
+              </tr>
+            </thead>
+            <tbody>
+              {config.seat_ranges!.map((range: SeatRange) => (
+                <tr key={range.id} className="border-b border-slate-100">
+                  <td className="py-2 font-medium text-slate-900">{range.prefix}</td>
+                  <td className="py-2 text-slate-600">{range.prefix}{range.start} - {range.prefix}{range.end}</td>
+                  <td className="py-2 text-slate-600">{range.end - range.start + 1}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-sm text-slate-500">
+            Total seats: {config.seat_ranges!.reduce((sum: number, r: SeatRange) => sum + (r.end - r.start + 1), 0)}
+          </div>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden bg-slate-50">
+          <SeatmapViewer seatingConfig={config} />
+        </div>
+      )}
     </div>
   );
 }

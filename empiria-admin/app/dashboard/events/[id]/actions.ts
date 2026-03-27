@@ -149,7 +149,7 @@ export async function adminReissueTicket(input: {
   if (!event) return { success: false, error: "Event not found" };
 
   // Cancel old ticket
-  await supabase.from("tickets").update({ status: "cancelled" }).eq("id", input.oldTicketId);
+  await supabase.from("tickets").update({ status: "canceled" }).eq("id", input.oldTicketId);
 
   // Restore inventory (new ticket trigger will decrement again — net zero)
   const { data: currentTier } = await supabase

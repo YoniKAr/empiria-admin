@@ -1,10 +1,10 @@
 // ─── Enums (match Supabase custom ENUM types) ───
 
 export type UserRole = "attendee" | "organizer" | "non_profit" | "admin";
-export type EventStatus = "draft" | "published" | "cancelled" | "completed";
+export type EventStatus = "draft" | "published" | "canceled" | "completed";
 export type SeatingType = "general_admission" | "reserved_seating_list" | "seatmap_pro";
-export type OrderStatus = "pending" | "completed" | "refunded" | "cancelled";
-export type TicketStatus = "valid" | "used" | "cancelled" | "expired";
+export type OrderStatus = "pending" | "completed" | "refunded" | "canceled";
+export type TicketStatus = "valid" | "used" | "canceled" | "expired";
 export type SplitSource = "platform_fee" | "net_revenue";
 
 // ─── Table Row Types ───

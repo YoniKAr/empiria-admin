@@ -52,8 +52,8 @@ export default async function OrderDetailPage(props: {
             </button>
           </form>
         )}
-        {order.status !== "cancelled" && (
-          <form action={async () => { "use server"; await updateOrderStatus(id, "cancelled" as OrderStatus); }}>
+        {order.status !== "canceled" && (
+          <form action={async () => { "use server"; await updateOrderStatus(id, "canceled" as OrderStatus); }}>
             <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors">
               <Ban className="w-4 h-4" /> Cancel
             </button>

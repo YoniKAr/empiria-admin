@@ -602,3 +602,51 @@ export async function getRevenueByEvent() {
 
   return Array.from(map.values()).sort((a, b) => b.totalRevenue - a.totalRevenue);
 }
+
+// ═══════════════════════════════════════════
+//  GLOBAL SEARCH
+// ═══════════════════════════════════════════
+
+export async function globalSearch(query: string) {
+  await adminGuard();
+  const supabase = db();
+  
+  if (!query || query.trim().length <= 1) return { events: [], users: [], orders: [] };
+
+  const searchStr = `%${query.trim()}%`;
+  
+  const [eventsRes, usersRes, ordersRes] = await Promise.all([
+    supabase.from("events").select("id, title, status").is("deleted_at", null).ilike("title", searchStr).limit(5),
+    supabase.from("users").select("id, full_name, email").is("deleted_at", null).or(`full_name.ilike.${searchStr},email.ilike.${searchStr}`).limit(5),
+    supabase.from("orders").select("id, stripe_payment_intent_id, status").or(`stripe_payment_intent_id.ilike.${searchStr},stripe_checkout_session_id.ilike.${searchStr}`).limit(5)
+  ]);
+
+  return {
+    events: eventsRes.data ?? [],
+    users: usersRes.data ?? [],
+    orders: ordersRes.data ?? []
+  };
+}
+
+export async function updateAdminProfile(formData: FormData) {
+  const user = await adminGuard();
+  const supabase = db();
+
+  const firstName = formData.get("first_name") as string;
+  const lastName = formData.get("last_name") as string;
+  const avatarUrl = formData.get("avatar_url") as string;
+
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+
+  const updateData: Record<string, string | null> = {};
+  if (fullName !== null) updateData.full_name = fullName;
+  if (avatarUrl !== undefined && avatarUrl !== null) updateData.avatar_url = avatarUrl;
+
+  const { error } = await supabase
+    .from("users")
+    .update(updateData)
+    .eq("id", user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/settings");
+}

@@ -10,7 +10,7 @@ const STATUS_OPTIONS = [
   { label: "Pending", value: "pending" },
   { label: "Completed", value: "completed" },
   { label: "Refunded", value: "refunded" },
-  { label: "Cancelled", value: "cancelled" },
+  { label: "Cancelled", value: "canceled" },
 ];
 
 export default async function OrdersPage(props: {

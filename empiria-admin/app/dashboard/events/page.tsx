@@ -10,7 +10,7 @@ import { Star, ExternalLink } from "lucide-react";
 const STATUS_OPTIONS = [
   { label: "Draft", value: "draft" },
   { label: "Published", value: "published" },
-  { label: "Cancelled", value: "cancelled" },
+  { label: "Cancelled", value: "canceled" },
   { label: "Completed", value: "completed" },
 ];
 

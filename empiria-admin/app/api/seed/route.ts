@@ -193,7 +193,7 @@ export async function GET() {
         sales_end_at: daysFromNow(60),
         venue_name: "Banff Springs",
         city: "Banff",
-        status: "cancelled",
+        status: "canceled",
         platform_fee_percent: 5,
         currency: "cad",
         total_capacity: 30,

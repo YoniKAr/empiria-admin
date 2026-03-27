@@ -112,7 +112,7 @@ export default async function EventDetailPage(props: {
           </form>
         )}
         {(event.status === "draft" || event.status === "published") && (
-          <form action={async () => { "use server"; await updateEventStatus(id, "cancelled" as EventStatus); }}>
+          <form action={async () => { "use server"; await updateEventStatus(id, "canceled" as EventStatus); }}>
             <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors">
               <Ban className="w-4 h-4" />
               Cancel Event

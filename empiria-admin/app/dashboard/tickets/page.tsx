@@ -9,7 +9,7 @@ import { Ban } from "lucide-react";
 const STATUS_OPTIONS = [
   { label: "Valid", value: "valid" },
   { label: "Used", value: "used" },
-  { label: "Cancelled", value: "cancelled" },
+  { label: "Cancelled", value: "canceled" },
   { label: "Expired", value: "expired" },
 ];
 
@@ -67,7 +67,7 @@ export default async function TicketsPage(props: {
                     <td className="px-6 py-3 text-slate-500 whitespace-nowrap">{formatDateTime(ticket.purchase_date as string)}</td>
                     <td className="px-6 py-3">
                       {ticket.status === "valid" && (
-                        <form action={async () => { "use server"; await updateTicketStatus(ticket.id as string, "cancelled" as TicketStatus); }}>
+                        <form action={async () => { "use server"; await updateTicketStatus(ticket.id as string, "canceled" as TicketStatus); }}>
                           <button type="submit" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
                             <Ban className="w-3 h-3" /> Cancel
                           </button>

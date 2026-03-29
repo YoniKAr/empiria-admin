@@ -21,7 +21,7 @@ export default async function UserDetailPage(props: {
   }
 
   const { user, events, orders } = data;
-  const organizerAppUrl = process.env.NEXT_PUBLIC_ORGANIZER_APP_URL;
+  const organizerAppUrl = process.env.ORGANIZER_URL;
 
   return (
     <div className="space-y-6">

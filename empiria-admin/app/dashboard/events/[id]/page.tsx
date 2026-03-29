@@ -28,7 +28,7 @@ export default async function EventDetailPage(props: {
 
   const { event, tiers, orders, occurrences } = data;
   const organizer = event.organizer as any;
-  const organizerAppUrl = process.env.NEXT_PUBLIC_ORGANIZER_APP_URL;
+  const organizerAppUrl = process.env.ORGANIZER_URL;
 
   // Fetch tickets for this event with tier names
   const supabase = getSupabaseAdmin();

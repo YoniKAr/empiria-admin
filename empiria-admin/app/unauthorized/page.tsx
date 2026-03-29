@@ -59,7 +59,7 @@ export default async function UnauthorizedPage() {
               {user.role === "organizer" && (
                 <a
                   href={
-                    process.env.NEXT_PUBLIC_ORGANIZER_APP_URL ||
+                    process.env.ORGANIZER_URL ||
                     "https://organizer.empiriaindia.com"
                   }
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"

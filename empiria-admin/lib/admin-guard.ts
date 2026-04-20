@@ -15,7 +15,7 @@ export async function requireAdmin(): Promise<User> {
   const session = await auth0.getSession();
 
   if (!session?.user) {
-    redirect("/auth/login");
+    redirect("/auth/login?screen_hint=signup");
   }
 
   const auth0Id = session.user.sub;

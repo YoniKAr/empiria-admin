@@ -104,6 +104,35 @@ export default async function OrderDetailPage(props: {
         </div>
       </div>
 
+      {/* Payout Splits */}
+      {(order as any).payout_breakdown?.splits && (order as any).payout_breakdown.splits.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-900">Payout Splits</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Recipient</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Percentage</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(order as any).payout_breakdown.splits.map((split: any, i: number) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    <td className="px-6 py-3 font-medium text-slate-900">{split.description || split.user_id}</td>
+                    <td className="px-6 py-3 text-slate-600">{split.percentage}%</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">{formatCurrency(Number(split.amount), order.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Line Items */}
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="px-6 py-4 border-b border-slate-100"><h2 className="font-semibold text-slate-900">Line Items ({items.length})</h2></div>

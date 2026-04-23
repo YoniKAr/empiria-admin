@@ -58,6 +58,26 @@ export default async function EventDetailPage(props: {
     remaining: t.remaining_quantity as number,
   }));
 
+  // Fetch revenue splits for this event
+  const { data: revenueSplits } = await supabase
+    .from("revenue_splits")
+    .select("*")
+    .eq("event_id", id);
+
+  let splitUsersMap = new Map<string, { full_name: string; email: string }>();
+  if (revenueSplits && revenueSplits.length > 0) {
+    const userIds = (revenueSplits as any[]).map((s: any) => s.recipient_user_id).filter(Boolean);
+    if (userIds.length > 0) {
+      const { data: splitUsers } = await supabase
+        .from("users")
+        .select("auth0_id, full_name, email")
+        .in("auth0_id", userIds);
+      for (const u of (splitUsers ?? []) as any[]) {
+        splitUsersMap.set(u.auth0_id, { full_name: u.full_name, email: u.email });
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Link
@@ -162,6 +182,40 @@ export default async function EventDetailPage(props: {
           )}
         </div>
       </div>
+
+      {/* Revenue Splits */}
+      {revenueSplits && revenueSplits.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-900">Revenue Splits ({revenueSplits.length})</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Organizer</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Email</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Percentage</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(revenueSplits as any[]).map((split: any) => {
+                  const splitUser = splitUsersMap.get(split.recipient_user_id);
+                  return (
+                    <tr key={split.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 font-medium text-slate-900">{splitUser?.full_name ?? "Unknown"}</td>
+                      <td className="px-6 py-3 text-slate-500">{splitUser?.email ?? split.recipient_user_id}</td>
+                      <td className="px-6 py-3 text-slate-900">{Number(split.percentage)}%</td>
+                      <td className="px-6 py-3 text-slate-500">{split.description ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Seating Map */}
       {event.seating_type !== "general_admission" && (

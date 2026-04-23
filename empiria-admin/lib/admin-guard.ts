@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth0 } from "./auth0";
+import { getSafeSession } from "./auth0";
 import { getSupabaseAdmin } from "./supabase";
 import type { User } from "./types";
 
@@ -12,7 +12,7 @@ import type { User } from "./types";
  * - Admin → returns the full Supabase user row
  */
 export async function requireAdmin(): Promise<User> {
-  const session = await auth0.getSession();
+  const session = await getSafeSession();
 
   if (!session?.user) {
     redirect("/auth/login?screen_hint=signup");
@@ -46,7 +46,7 @@ export async function requireAdmin(): Promise<User> {
  */
 export async function getSessionUser(): Promise<User | null> {
   try {
-    const session = await auth0.getSession();
+    const session = await getSafeSession();
     if (!session?.user) return null;
 
     const supabase = getSupabaseAdmin();

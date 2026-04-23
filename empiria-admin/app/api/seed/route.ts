@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { getSafeSession } from "@/lib/auth0";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
   // Verify admin
-  const session = await auth0.getSession();
+  const session = await getSafeSession();
   if (!session?.user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

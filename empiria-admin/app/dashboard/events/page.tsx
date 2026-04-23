@@ -5,7 +5,7 @@ import StatusBadge from "@/components/StatusBadge";
 import SearchFilter from "@/components/SearchFilter";
 import Pagination from "@/components/Pagination";
 import type { EventStatus } from "@/lib/types";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, Plus } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { label: "Draft", value: "draft" },
@@ -26,11 +26,20 @@ export default async function EventsPage(props: {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Events</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {total} event{total !== 1 ? "s" : ""} total
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Events</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {total} event{total !== 1 ? "s" : ""} total
+          </p>
+        </div>
+        <Link
+          href="/dashboard/events/create"
+          className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create Event
+        </Link>
       </div>
 
       <SearchFilter

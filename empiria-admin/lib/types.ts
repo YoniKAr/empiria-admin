@@ -18,6 +18,7 @@ export interface User {
   avatar_url: string | null;
   role: UserRole;
   profile_data: Record<string, unknown>;
+  country: string | null;
   settings: Record<string, unknown>;
   interests: string[];
   stripe_account_id: string | null;
@@ -47,6 +48,7 @@ export interface Event {
   location_lat: number | null;
   location_lng: number | null;
   city: string | null;
+  country: string | null;
   status: EventStatus;
   seating_type: SeatingType;
   seating_config: Record<string, unknown>;

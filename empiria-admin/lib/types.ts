@@ -2,7 +2,7 @@
 
 export type UserRole = "attendee" | "organizer" | "non_profit" | "admin";
 export type EventStatus = "draft" | "published" | "canceled" | "completed";
-export type SeatingType = "general_admission" | "reserved_seating_list" | "seatmap_pro";
+export type SeatingType = "general_admission" | "assigned_seating" | "zone_admission" | "zone_map" | "seat_map";
 export type OrderStatus = "pending" | "completed" | "refunded" | "canceled";
 export type TicketStatus = "valid" | "used" | "canceled" | "expired";
 export type SplitSource = "platform_fee" | "net_revenue";

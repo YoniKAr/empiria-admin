@@ -38,11 +38,15 @@ export function SeatmapSection({ event, tiers }: SeatmapSectionProps) {
 
   const hasRanges = config.seat_ranges && config.seat_ranges.length > 0;
   const seatingLabel =
-    event.seating_type === "reserved_seating_list"
-      ? hasRanges ? "Assigned Seating" : "Zone Map"
-      : event.seating_type === "seatmap_pro"
-        ? "Seat Map"
-        : event.seating_type;
+    event.seating_type === "assigned_seating"
+      ? "Assigned Seating"
+      : event.seating_type === "zone_admission"
+        ? "Zone Admission"
+        : event.seating_type === "zone_map"
+          ? "Zone Map"
+          : event.seating_type === "seat_map"
+            ? "Seat Map"
+            : event.seating_type;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
@@ -80,7 +84,7 @@ export function SeatmapSection({ event, tiers }: SeatmapSectionProps) {
         </div>
       </div>
 
-      {event.seating_type === "reserved_seating_list" && hasRanges ? (
+      {event.seating_type === "assigned_seating" && hasRanges ? (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <span>{config.allow_seat_choice ? "Customers can choose seats" : "Seats auto-assigned"}</span>

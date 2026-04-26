@@ -1,20 +1,129 @@
-import { requireAdmin } from "@/lib/admin-guard";
-import { getCategories } from "@/lib/actions";
-import AdminCreateEventForm from "./AdminCreateEventForm";
+import { requireAdmin } from '@/lib/admin-guard';
+import { redirect } from 'next/navigation';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import AdminCreateEventWizard from './AdminCreateEventWizard';
 
-export default async function AdminCreateEventPage() {
-    const admin = await requireAdmin();
-    const categories = await getCategories();
+interface PageProps {
+  searchParams: Promise<{ edit?: string }>;
+}
 
-    return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Create Event</h1>
-                <p className="text-slate-500 text-sm mt-1">
-                    Create a new event as Empiria Events (platform-owned).
-                </p>
-            </div>
-            <AdminCreateEventForm categories={categories} adminAuthId={admin.auth0_id} />
-        </div>
-    );
+function toDatetimeLocal(value: string | null): string {
+  if (!value) return '';
+  const d = new Date(value);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
+export default async function AdminCreateEventPage({ searchParams }: PageProps) {
+  const { edit: editEventId } = await searchParams;
+  const admin = await requireAdmin();
+
+  const supabase = getSupabaseAdmin();
+
+  // Fetch admin's info for the organizer preview
+  const { data: user } = await supabase
+    .from('users')
+    .select('full_name, avatar_url, default_currency')
+    .eq('auth0_id', admin.auth0_id)
+    .single();
+
+  const organizer = {
+    name: user?.full_name || 'Admin',
+    avatarUrl: user?.avatar_url || null,
+  };
+
+  // Fetch categories for the dropdown
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, slug')
+    .eq('is_active', true)
+    .order('name');
+
+  // If editing, fetch existing event + tiers
+  let existingEvent = undefined;
+  if (editEventId) {
+    const { data: event } = await supabase
+      .from('events')
+      .select(`
+        id, title, slug, description, what_to_expect, category_id, tags,
+        cover_image_url, sales_start_at, sales_end_at, location_type,
+        venue_name, address_text, city, currency, status, organizer_id
+      `)
+      .eq('id', editEventId)
+      .single();
+
+    // Admin can edit any event — just check it exists
+    if (!event) {
+      redirect('/dashboard/events');
+    }
+
+    const [tiersRes, occurrencesRes] = await Promise.all([
+      supabase
+        .from('ticket_tiers')
+        .select('id, name, description, price, currency, initial_quantity, remaining_quantity, max_per_order, sales_start_at, sales_end_at, is_hidden')
+        .eq('event_id', editEventId)
+        .order('price', { ascending: true }),
+      supabase
+        .from('event_occurrences')
+        .select('id, starts_at, ends_at, label')
+        .eq('event_id', editEventId)
+        .order('starts_at', { ascending: true }),
+    ]);
+    const tiers = tiersRes.data;
+    const occurrences = occurrencesRes.data;
+
+    // Parse description JSON → plain text
+    let descriptionText = '';
+    if (event.description) {
+      try {
+        const parsed = typeof event.description === 'string'
+          ? JSON.parse(event.description)
+          : event.description;
+        descriptionText = parsed?.text || '';
+      } catch {
+        descriptionText = '';
+      }
+    }
+
+    existingEvent = {
+      id: event.id,
+      title: event.title,
+      slug: event.slug,
+      description: descriptionText,
+      what_to_expect: event.what_to_expect || [''],
+      category_id: event.category_id || '',
+      tags: event.tags || [],
+      cover_image_url: event.cover_image_url || '',
+      sales_start_at: toDatetimeLocal(event.sales_start_at),
+      sales_end_at: toDatetimeLocal(event.sales_end_at),
+      location_type: (event.location_type || 'physical') as 'physical' | 'virtual' | 'hybrid',
+      venue_name: event.venue_name || '',
+      address_text: event.address_text || '',
+      city: event.city || '',
+      currency: event.currency || 'cad',
+      status: event.status,
+      ticket_tiers: (tiers || []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description || '',
+        price: Number(t.price),
+        currency: t.currency || 'cad',
+        initial_quantity: t.initial_quantity,
+        max_per_order: t.max_per_order || 10,
+        sales_start_at: toDatetimeLocal(t.sales_start_at),
+        sales_end_at: toDatetimeLocal(t.sales_end_at),
+        is_hidden: t.is_hidden || false,
+      })),
+      event_occurrences: (occurrences || []).map((o) => ({
+        id: o.id,
+        starts_at: toDatetimeLocal(o.starts_at),
+        ends_at: toDatetimeLocal(o.ends_at),
+        label: o.label || '',
+      })),
+    };
+  }
+
+  const defaultCurrency = user?.default_currency || 'cad';
+
+  return <AdminCreateEventWizard categories={categories || []} existingEvent={existingEvent} organizer={organizer} defaultCurrency={defaultCurrency} />;
 }

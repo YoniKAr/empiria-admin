@@ -1,11 +1,11 @@
-export type SeatingMode = "general_admission" | "reserved_seating_list" | "seatmap_pro";
+export type SeatingMode = "general_admission" | "assigned_seating" | "zone_admission" | "zone_map" | "seat_map";
 export type ViewMode = "image_overlay" | "schematic";
 
 // Multi-polygon support for zones
 export interface ZonePolygon {
   id: string;
   points: [number, number][];
-  seats?: SeatDefinition[]; // only for seatmap_pro seat mode
+  seats?: SeatDefinition[]; // only for seat_map mode
 }
 
 export interface ZoneDefinition {
@@ -14,7 +14,8 @@ export interface ZoneDefinition {
   name: string;
   color: string;
   polygons: ZonePolygon[]; // multi-polygon support
-  // Zone-based pricing (seatmap_pro)
+  tiers?: ZoneTier[]; // multiple pricing tiers per zone
+  // Legacy single-tier fields (used when tiers array is empty/absent)
   price?: number;
   initial_quantity?: number;
   max_per_order?: number;
@@ -27,6 +28,17 @@ export interface SeatDefinition {
   label: string;
   x: number;
   y: number;
+}
+
+// Tiers within a zone (e.g. Adult, Child, VIP for the same physical area)
+export interface ZoneTier {
+  id: string;
+  name: string;
+  price: number;
+  initial_quantity: number;
+  max_per_order: number;
+  description: string;
+  currency: string;
 }
 
 export interface SectionDefinition {

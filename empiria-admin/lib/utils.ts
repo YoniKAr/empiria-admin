@@ -61,6 +61,17 @@ export function timeAgo(dateStr: string): string {
   return formatDate(dateStr);
 }
 
+// ─── Stripe ───
+
+function isZeroDecimalCurrency(currency: string): boolean {
+  return ["jpy", "krw", "vnd"].includes(currency.toLowerCase());
+}
+
+export function toStripeAmount(amount: number, currency: string): number {
+  if (isZeroDecimalCurrency(currency)) return Math.round(amount);
+  return Math.round(amount * 100);
+}
+
 // ─── Misc ───
 
 export function truncate(str: string, max = 50): string {

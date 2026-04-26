@@ -233,11 +233,23 @@ export async function toggleEventFeatured(eventId: string, isFeatured: boolean) 
   revalidatePath(`/dashboard/events/${eventId}`);
 }
 
-export async function updatePlatformFee(eventId: string, feePercent: number, feeFixed: number) {
+export async function updatePlatformFee(
+  eventId: string,
+  feePercent: number,
+  feeFixed: number,
+  passProcessingFee?: boolean
+) {
   await adminGuard();
+  const updatePayload: Record<string, unknown> = {
+    platform_fee_percent: feePercent,
+    platform_fee_fixed: feeFixed,
+  };
+  if (passProcessingFee !== undefined) {
+    updatePayload.pass_processing_fee = passProcessingFee;
+  }
   const { error } = await db()
     .from("events")
-    .update({ platform_fee_percent: feePercent, platform_fee_fixed: feeFixed })
+    .update(updatePayload)
     .eq("id", eventId);
   if (error) throw new Error(error.message);
   revalidatePath(`/dashboard/events/${eventId}`);

@@ -105,6 +105,7 @@ interface EventFormData {
     percentage: number;
     description: string;
   }>;
+  pass_processing_fee: boolean;
 }
 
 interface Category {
@@ -186,6 +187,7 @@ const INITIAL_FORM: EventFormData = {
   seating_type: 'general_admission' as SeatingMode,
   seating_config: null,
   revenue_splits: [],
+  pass_processing_fee: false,
 };
 
 function toSlug(text: string): string {
@@ -294,6 +296,7 @@ export default function AdminCreateEventWizard({
         seating_type: (existingEvent as ExistingEvent & { seating_type?: SeatingMode }).seating_type || 'general_admission',
         seating_config: (existingEvent as ExistingEvent & { seating_config?: SeatingConfig }).seating_config || null,
         revenue_splits: [],
+        pass_processing_fee: false,
       };
     }
     const currency = defaultCurrency || 'cad';
@@ -591,6 +594,7 @@ export default function AdminCreateEventWizard({
       ticket_tiers: form.ticket_tiers,
       seating_type: form.seating_type,
       seating_config: form.seating_config as Record<string, unknown> | null,
+      pass_processing_fee: form.pass_processing_fee,
     };
   };
 
@@ -2045,6 +2049,67 @@ function StepTicketsAndSeating({
           </>
         )}
 
+        {/* ─── Processing Fee Option ───────────────────────────────── */}
+        <Separator />
+        <div>
+          <h3 className="text-sm font-medium text-foreground mb-2">Processing Fee</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Choose who pays the payment processing fee (approximately 2.9% + CA$0.30 per transaction).
+          </p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all w-full ${
+                !form.pass_processing_fee
+                  ? 'border-primary bg-primary/5 shadow-sm'
+                  : 'border-border hover:border-primary/40 hover:bg-muted/30'
+              }`}
+              onClick={() => updateField('pass_processing_fee', false)}
+            >
+              <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 mt-0.5 ${
+                !form.pass_processing_fee ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+              }`}>
+                {!form.pass_processing_fee && (
+                  <svg className="size-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <div className="font-medium text-sm">Organizer absorbs the fee</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Processing fees come from organizer revenue. Attendees see only the ticket price.
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all w-full ${
+                form.pass_processing_fee
+                  ? 'border-primary bg-primary/5 shadow-sm'
+                  : 'border-border hover:border-primary/40 hover:bg-muted/30'
+              }`}
+              onClick={() => updateField('pass_processing_fee', true)}
+            >
+              <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 mt-0.5 ${
+                form.pass_processing_fee ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+              }`}>
+                {form.pass_processing_fee && (
+                  <svg className="size-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <div className="font-medium text-sm">Pass fee to attendee</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  A small processing fee is added at checkout. Organizer receives the full ticket price minus the platform fee.
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* ─── Revenue Splits ──────────────────────────────────────────── */}
         <Separator />
         <RevenueSplitsEditor
@@ -2482,6 +2547,14 @@ function StepReview({
             </div>
           </ReviewCard>
         )}
+
+        <div className="rounded-xl border p-5">
+          <h3 className="text-sm font-semibold mb-3">Fee Settings</h3>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Processing fee</span>
+            <span>{form.pass_processing_fee ? 'Passed to attendee' : 'Absorbed by organizer'}</span>
+          </div>
+        </div>
 
         {form.cover_image_url && (
           <ReviewCard title="Cover Image" icon={ImageIcon}>

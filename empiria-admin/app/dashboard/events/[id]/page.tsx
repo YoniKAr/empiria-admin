@@ -161,6 +161,12 @@ export default async function EventDetailPage(props: {
                 {Number(event.platform_fee_fixed) > 0 && ` + ${formatCurrency(Number(event.platform_fee_fixed), event.currency)}`}
               </dd>
             </div>
+            <div>
+              <dt className="text-slate-500">Processing Fee</dt>
+              <dd className="text-slate-900">
+                {event.pass_processing_fee ? 'Passed to attendee' : 'Absorbed by organizer'}
+              </dd>
+            </div>
             <div><dt className="text-slate-500">Created</dt><dd className="text-slate-900">{formatDateTime(event.created_at)}</dd></div>
             <div><dt className="text-slate-500">Source App</dt><dd className="text-slate-900">{event.source_app ?? "—"}</dd></div>
           </dl>

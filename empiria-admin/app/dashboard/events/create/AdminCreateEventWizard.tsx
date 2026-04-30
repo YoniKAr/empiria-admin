@@ -106,6 +106,7 @@ interface EventFormData {
     description: string;
   }>;
   pass_processing_fee: boolean;
+  charge_ticket_tax: boolean;
 }
 
 interface Category {
@@ -188,6 +189,7 @@ const INITIAL_FORM: EventFormData = {
   seating_config: null,
   revenue_splits: [],
   pass_processing_fee: false,
+  charge_ticket_tax: false,
 };
 
 function toSlug(text: string): string {
@@ -297,6 +299,7 @@ export default function AdminCreateEventWizard({
         seating_config: (existingEvent as ExistingEvent & { seating_config?: SeatingConfig }).seating_config || null,
         revenue_splits: [],
         pass_processing_fee: false,
+        charge_ticket_tax: false,
       };
     }
     const currency = defaultCurrency || 'cad';
@@ -595,6 +598,7 @@ export default function AdminCreateEventWizard({
       seating_type: form.seating_type,
       seating_config: form.seating_config as Record<string, unknown> | null,
       pass_processing_fee: form.pass_processing_fee,
+      charge_ticket_tax: form.charge_ticket_tax,
     };
   };
 
@@ -2049,12 +2053,12 @@ function StepTicketsAndSeating({
           </>
         )}
 
-        {/* ─── Processing Fee Option ───────────────────────────────── */}
+        {/* ─── Convenience Fee Option ──────────────────────────────── */}
         <Separator />
         <div>
-          <h3 className="text-sm font-medium text-foreground mb-2">Processing Fee</h3>
+          <h3 className="text-sm font-medium text-foreground mb-2">Convenience Fee</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Choose who pays the payment processing fee (approximately 2.9% + CA$0.30 per transaction).
+            Choose who pays the convenience fee (approximately 2.9% + CA$0.30 per transaction).
           </p>
           <div className="space-y-2">
             <button
@@ -2076,9 +2080,9 @@ function StepTicketsAndSeating({
                 )}
               </div>
               <div>
-                <div className="font-medium text-sm">Organizer absorbs the fee</div>
+                <div className="font-medium text-sm">I'll absorb the convenience fee</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  Processing fees come from organizer revenue. Attendees see only the ticket price.
+                  Convenience fees come from organizer revenue. Attendees see only the ticket price.
                 </div>
               </div>
             </button>
@@ -2101,12 +2105,41 @@ function StepTicketsAndSeating({
                 )}
               </div>
               <div>
-                <div className="font-medium text-sm">Pass fee to attendee</div>
+                <div className="font-medium text-sm">Pass convenience fee to attendee</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  A small processing fee is added at checkout. Organizer receives the full ticket price minus the platform fee.
+                  A small convenience fee is added at checkout. Organizer receives the full ticket price minus the platform fee.
                 </div>
               </div>
             </button>
+          </div>
+        </div>
+
+        {/* ─── Sales Tax ──────────────────────────────────────────── */}
+        <Separator />
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Sales Tax</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Choose whether to charge 13% HST on ticket prices for this event.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                form.charge_ticket_tax ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}
+              onClick={() => updateField('charge_ticket_tax', !form.charge_ticket_tax)}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  form.charge_ticket_tax ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <span className="text-sm font-medium text-foreground">
+              {form.charge_ticket_tax ? 'Charging 13% HST on tickets' : 'No sales tax on tickets'}
+            </span>
           </div>
         </div>
 
@@ -2551,8 +2584,12 @@ function StepReview({
         <div className="rounded-xl border p-5">
           <h3 className="text-sm font-semibold mb-3">Fee Settings</h3>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Processing fee</span>
+            <span className="text-muted-foreground">Convenience fee</span>
             <span>{form.pass_processing_fee ? 'Passed to attendee' : 'Absorbed by organizer'}</span>
+          </div>
+          <div className="flex justify-between text-sm mt-1.5">
+            <span className="text-muted-foreground">Ticket sales tax</span>
+            <span>{form.charge_ticket_tax ? 'Charging 13% HST' : 'Not charging'}</span>
           </div>
         </div>
 

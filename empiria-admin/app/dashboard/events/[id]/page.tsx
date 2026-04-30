@@ -155,16 +155,22 @@ export default async function EventDetailPage(props: {
               <dd className="text-slate-900">{event.total_tickets_sold} / {event.total_capacity === 0 ? "Unlimited" : event.total_capacity}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Platform Fee</dt>
+              <dt className="text-slate-500">Convenience Fee</dt>
               <dd className="text-slate-900">
                 {Number(event.platform_fee_percent)}%
                 {Number(event.platform_fee_fixed) > 0 && ` + ${formatCurrency(Number(event.platform_fee_fixed), event.currency)}`}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Processing Fee</dt>
+              <dt className="text-slate-500">Fee Mode</dt>
               <dd className="text-slate-900">
                 {event.pass_processing_fee ? 'Passed to attendee' : 'Absorbed by organizer'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Ticket Sales Tax</dt>
+              <dd className="text-slate-900">
+                {event.charge_ticket_tax ? 'Charging 13% HST' : 'Not charging'}
               </dd>
             </div>
             <div><dt className="text-slate-500">Created</dt><dd className="text-slate-900">{formatDateTime(event.created_at)}</dd></div>

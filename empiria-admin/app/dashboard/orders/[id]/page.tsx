@@ -6,6 +6,8 @@ import StatusBadge from "@/components/StatusBadge";
 import type { OrderStatus } from "@/lib/types";
 import { ArrowLeft, RefreshCw, Ban, CheckCircle } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function OrderDetailPage(props: {
   params: Promise<{ id: string }>;
 }) {

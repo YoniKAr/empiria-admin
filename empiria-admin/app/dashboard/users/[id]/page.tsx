@@ -6,6 +6,8 @@ import StatusBadge from "@/components/StatusBadge";
 import type { UserRole } from "@/lib/types";
 import { ArrowLeft, Eye, Trash2, Shield } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const ROLES: UserRole[] = ["attendee", "organizer", "non_profit", "admin"];
 
 export default async function UserDetailPage(props: {

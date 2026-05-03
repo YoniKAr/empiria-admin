@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/admin-guard";
 import ProfileForm from "./ProfileForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const admin = await requireAdmin();
 
@@ -13,9 +15,6 @@ export default async function SettingsPage() {
       <div className="flex items-center gap-8 border-b border-slate-200 mb-8 pt-2">
         <div className="pb-3 border-b-2 border-orange-500 text-orange-500 font-medium text-sm">
           Profile Details
-        </div>
-        <div className="pb-3 text-slate-500 font-medium text-sm hover:text-slate-800 cursor-pointer">
-          Security
         </div>
       </div>
 

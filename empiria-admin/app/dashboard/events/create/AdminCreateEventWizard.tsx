@@ -310,6 +310,7 @@ export default function AdminCreateEventWizard({
   );
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPreview, setShowPreview] = useState(true);
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -670,7 +671,7 @@ export default function AdminCreateEventWizard({
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-white">
       {/* Toast */}
       {toast && (
         <div
@@ -689,7 +690,7 @@ export default function AdminCreateEventWizard({
       {/* ─── LEFT: Form Panel ─────────────────────────────────────────── */}
       <div className="flex min-h-screen flex-1 flex-col lg:max-w-[60%]">
         {/* Sticky Header */}
-        <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-10 border-b border-border bg-white/95 backdrop-blur-sm">
           <div className="flex items-center justify-between px-6 py-4 lg:px-8">
             <div>
               <h1 className="text-lg font-bold tracking-tight text-foreground">
@@ -744,11 +745,11 @@ export default function AdminCreateEventWizard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { }}
+                onClick={() => setShowPreview(p => !p)}
                 className="gap-1.5 text-xs"
               >
                 <Eye className="size-3.5" />
-                <span className="hidden sm:inline">Preview</span>
+                <span className="hidden sm:inline">{showPreview ? 'Hide Preview' : 'Preview'}</span>
               </Button>
               <Button
                 variant="outline"
@@ -815,7 +816,7 @@ export default function AdminCreateEventWizard({
         </div>
 
         {/* Navigation - sticky bottom */}
-        <div className="sticky bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent px-6 pb-6 pt-8 lg:px-8">
+        <div className="sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent px-6 pb-6 pt-8 lg:px-8">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
@@ -849,11 +850,13 @@ export default function AdminCreateEventWizard({
       </div>
 
       {/* ─── RIGHT: Live Preview Panel ─────────────────────────────────── */}
-      <aside className="hidden border-l border-border lg:block lg:w-[40%]">
-        <div className="sticky top-0 h-screen overflow-y-auto bg-[#faf9f7]">
-          <LivePreview form={form} categories={categories} organizer={organizer} />
-        </div>
-      </aside>
+      {showPreview && (
+        <aside className="hidden border-l border-border lg:block lg:w-[40%]">
+          <div className="sticky top-0 h-screen overflow-y-auto bg-[#faf9f7]">
+            <LivePreview form={form} categories={categories} organizer={organizer} />
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
@@ -925,7 +928,7 @@ function LivePreview({
 
         {/* Event Card */}
         <div
-          className="relative animate-float overflow-hidden rounded-2xl bg-card shadow-2xl"
+          className="relative animate-float overflow-hidden rounded-2xl bg-white shadow-2xl"
           style={{ border: '1.5px solid rgba(225, 140, 50, 0.3)' }}
         >
           {/* Image */}
@@ -952,7 +955,7 @@ function LivePreview({
 
             {/* Heart icon */}
             <button
-              className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-card/30 text-card backdrop-blur-sm transition-colors hover:bg-card/50"
+              className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-white/30 text-card backdrop-blur-sm transition-colors hover:bg-white/50"
               aria-label="Save event"
             >
               <Heart className="size-4" />
@@ -1382,7 +1385,7 @@ function StepDateVenue({
             {form.occurrences.map((occ, i) => (
               <div
                 key={occ.id}
-                className="relative rounded-xl border border-border bg-card p-5"
+                className="relative rounded-xl border border-border bg-white p-5"
               >
                 {form.occurrences.length > 1 && (
                   <Button
@@ -1440,7 +1443,7 @@ function StepDateVenue({
         </div>
 
         {/* Sales Window */}
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-white p-6">
           <Label className="text-sm font-medium text-foreground mb-1 block">
             Ticket Sales Window
           </Label>
@@ -1491,7 +1494,7 @@ function StepDateVenue({
                   'flex items-center gap-2 rounded-lg border px-5 py-3 text-sm font-medium transition-all',
                   form.location_type === opt.value
                     ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                    : 'border-border bg-card text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    : 'border-border bg-white text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                 )}
               >
                 <opt.icon className="size-4" />
@@ -1504,7 +1507,7 @@ function StepDateVenue({
         {/* Venue Details */}
         {(form.location_type === 'physical' ||
           form.location_type === 'hybrid') && (
-            <div className="space-y-5 rounded-xl border border-border bg-card p-6">
+            <div className="space-y-5 rounded-xl border border-border bg-white p-6">
               <FormField
                 label="Venue Name"
                 error={errors.venue_name}
@@ -1613,7 +1616,7 @@ function TierCards({
         {form.ticket_tiers.map((tier, i) => (
           <div
             key={tier.id}
-            className="relative rounded-xl border border-border bg-card p-6"
+            className="relative rounded-xl border border-border bg-white p-6"
           >
             <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl bg-primary" />
             {form.ticket_tiers.length > 1 && (
@@ -1976,7 +1979,7 @@ function StepTicketsAndSeating({
 
                 {/* Generated Tiers Summary (grouped by zone) */}
                 {form.seating_config?.zones && form.seating_config.zones.length > 0 && (
-                  <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="rounded-xl border border-border bg-white p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <Ticket className="size-4 text-primary" />
                       <h3 className="text-sm font-semibold text-foreground">
@@ -2508,7 +2511,7 @@ function ReviewCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-xl border border-border bg-white p-5">
       <div className="mb-3 flex items-center gap-2">
         <Icon className="size-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>

@@ -6,6 +6,8 @@ import Pagination from "@/components/Pagination";
 import type { TicketStatus } from "@/lib/types";
 import { Ban } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_OPTIONS = [
   { label: "Valid", value: "valid" },
   { label: "Used", value: "used" },

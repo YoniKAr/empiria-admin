@@ -216,7 +216,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
 
         {/* Total Revenue */}
-        <div
+        <Link
+          href="/dashboard/revenue"
           style={{
             background: "linear-gradient(135deg, #E07010 0%, #F5C842 100%)",
             borderRadius: 22,
@@ -225,6 +226,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
+            textDecoration: "none",
+            cursor: "pointer",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
@@ -252,7 +255,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div style={{ fontSize: 10, opacity: 0.7 }}>Tickets Sold</div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Tickets Sold */}
         <Card>

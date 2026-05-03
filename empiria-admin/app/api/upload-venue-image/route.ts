@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSafeSession } from "@/lib/auth0";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const session = await getSafeSession();
   if (!session?.user?.sub) {

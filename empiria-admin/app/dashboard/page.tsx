@@ -1,6 +1,8 @@
 import { getDashboardKpis, getOrders, getEvents } from "@/lib/actions";
 import DashboardClient from "@/components/DashboardClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [kpis, recentOrders, recentEvents] = await Promise.all([
     getDashboardKpis(),

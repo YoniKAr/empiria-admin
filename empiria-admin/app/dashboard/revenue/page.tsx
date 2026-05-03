@@ -3,13 +3,27 @@ import { formatCurrency } from "@/lib/utils";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import KpiCard from "@/components/KpiCard";
 import RevenueChart from "@/components/RevenueChart";
+import Collapsible from "@/components/Collapsible";
+import PeriodSelector from "./PeriodSelector";
 import Link from "next/link";
 import { DollarSign, TrendingUp, Wallet } from "lucide-react";
+import { Suspense } from "react";
 
-export default async function RevenuePage() {
+export const dynamic = "force-dynamic";
+
+const VALID_DAYS = [7, 30, 90, 180, 365];
+
+export default async function RevenuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string }>;
+}) {
+  const { days: daysParam } = await searchParams;
+  const days = VALID_DAYS.includes(Number(daysParam)) ? Number(daysParam) : 90;
+
   const [kpis, timeSeries, byEvent] = await Promise.all([
     getDashboardKpis(),
-    getRevenueTimeSeries(90),
+    getRevenueTimeSeries(days),
     getRevenueByEvent(),
   ]);
 
@@ -59,12 +73,24 @@ export default async function RevenuePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KpiCard title="Gross Revenue" value={formatCurrency(kpis.totalRevenue, kpis.currency)} icon={DollarSign} />
-        <KpiCard title="Platform Fees" value={formatCurrency(kpis.platformFees, kpis.currency)} subtitle="Your earnings" icon={TrendingUp} />
+        <KpiCard
+          title="Gross Revenue"
+          value={formatCurrency(kpis.totalRevenue, kpis.currency)}
+          icon={DollarSign}
+          className="bg-gradient-to-br from-orange-400 to-amber-500 border-orange-400 [&_.kpi-title]:text-orange-100 [&_.kpi-value]:text-white [&_.kpi-icon]:bg-white/20 [&_.kpi-icon-svg]:text-white"
+        />
+        <KpiCard
+          title="Platform Fees"
+          value={formatCurrency(kpis.platformFees, kpis.currency)}
+          subtitle="Your earnings"
+          icon={TrendingUp}
+          className="bg-gradient-to-br from-indigo-500 to-violet-600 border-indigo-500 [&_.kpi-title]:text-indigo-100 [&_.kpi-value]:text-white [&_.kpi-icon]:bg-white/20 [&_.kpi-icon-svg]:text-white"
+        />
         <KpiCard
           title="Organizer Payouts"
           value={formatCurrency(kpis.totalRevenue - kpis.platformFees, kpis.currency)}
           icon={Wallet}
+          className="bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-500 [&_.kpi-title]:text-emerald-100 [&_.kpi-value]:text-white [&_.kpi-icon]:bg-white/20 [&_.kpi-icon-svg]:text-white"
         />
       </div>
 
@@ -72,20 +98,31 @@ export default async function RevenuePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Revenue Trend</h2>
-            <p className="text-sm text-slate-500">Last 90 days</p>
+            <p className="text-sm text-slate-500">Last {days} days</p>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-500" />Revenue</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500" />Platform Fees</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 text-xs">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-500" />Revenue</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-emerald-500" />Platform Fees</span>
+            </div>
+            <Suspense>
+              <PeriodSelector current={days} />
+            </Suspense>
           </div>
         </div>
         <RevenueChart data={timeSeries} />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-900">Revenue by Event</h2>
-        </div>
+      <Collapsible
+        title={
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-slate-900">Revenue by Event</h2>
+            <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+              {byEvent.length} events
+            </span>
+          </div>
+        }
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -122,13 +159,18 @@ export default async function RevenuePage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Collapsible>
 
-      {/* Revenue by Organizer */}
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-900">Revenue by Organizer</h2>
-        </div>
+      <Collapsible
+        title={
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-slate-900">Revenue by Organizer</h2>
+            <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+              {byOrganizer.length} organizers
+            </span>
+          </div>
+        }
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -164,7 +206,7 @@ export default async function RevenuePage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Collapsible>
     </div>
   );
 }

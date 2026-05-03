@@ -6,6 +6,8 @@ import SearchFilter from "@/components/SearchFilter";
 import Pagination from "@/components/Pagination";
 import type { OrderStatus } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_OPTIONS = [
   { label: "Pending", value: "pending" },
   { label: "Completed", value: "completed" },

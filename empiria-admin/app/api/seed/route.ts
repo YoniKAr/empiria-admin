@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSafeSession } from "@/lib/auth0";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   // Verify admin
   const session = await getSafeSession();

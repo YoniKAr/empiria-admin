@@ -2,6 +2,8 @@ import { getTemplates, deleteTemplate } from "@/lib/template-actions";
 import { formatDateTime } from "@/lib/utils";
 import { Trash2, LayoutTemplate } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function TemplatesPage() {
   const templates = await getTemplates();
 

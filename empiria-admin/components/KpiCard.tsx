@@ -27,12 +27,12 @@ export default function KpiCard({
     >
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          <p className="kpi-title text-sm font-medium text-muted-foreground">{title}</p>
+          <p className="kpi-value text-2xl font-bold text-foreground">{value}</p>
+          {subtitle && <p className="kpi-title text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-primary" />
+        <div className="kpi-icon w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <Icon className="kpi-icon-svg w-5 h-5 text-primary" />
         </div>
       </div>
       {trend && (

@@ -99,7 +99,15 @@ export async function getRevenueTimeSeries(days = 30): Promise<RevenueDataPoint[
     map.set(date, existing);
   }
 
-  return Array.from(map.entries()).map(([date, d]) => ({ date, ...d }));
+  // Fill every day in the range so the chart is a continuous series
+  const result: RevenueDataPoint[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    const date = d.toISOString().slice(0, 10);
+    result.push({ date, ...(map.get(date) ?? { revenue: 0, platformFees: 0, orders: 0 }) });
+  }
+  return result;
 }
 
 // ═══════════════════════════════════════════
@@ -649,6 +657,8 @@ export async function updateAdminProfile(formData: FormData) {
   if (fullName !== null) updateData.full_name = fullName;
   if (avatarUrl !== undefined && avatarUrl !== null) updateData.avatar_url = avatarUrl;
 
+  if (Object.keys(updateData).length === 0) return;
+
   const { error } = await supabase
     .from("users")
     .update(updateData)
@@ -656,6 +666,40 @@ export async function updateAdminProfile(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/settings");
+}
+
+export async function uploadAvatarImage(
+  formData: FormData
+): Promise<ImageUploadResult<{ avatar_url: string }>> {
+  const admin = await adminGuard();
+
+  const file = formData.get("avatar") as File | null;
+  if (!file || file.size === 0) return { success: false, error: "No file provided" };
+
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    return { success: false, error: "File must be a JPEG, PNG, WebP, or GIF image" };
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: "File must be under 5 MB" };
+  }
+
+  const supabase = db();
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const safeSub = admin.auth0_id.replace(/\|/g, "_");
+  const path = `${safeSub}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { contentType: file.type, upsert: true });
+
+  if (uploadError) return { success: false, error: uploadError.message };
+
+  const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+  const avatar_url = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+  return { success: true, data: { avatar_url } };
 }
 
 // ═══════════════════════════════════════════

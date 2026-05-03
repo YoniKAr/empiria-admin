@@ -14,6 +14,8 @@ import { IssueTicketsModal } from "./IssueTicketsModal";
 import { AdminTicketTable } from "./AdminTicketTable";
 import { SeatmapSection } from "./SeatmapSection";
 
+export const dynamic = "force-dynamic";
+
 export default async function EventDetailPage(props: {
   params: Promise<{ id: string }>;
 }) {

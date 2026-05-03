@@ -7,6 +7,8 @@ import Pagination from "@/components/Pagination";
 import type { EventStatus } from "@/lib/types";
 import { Star, ExternalLink, Plus } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_OPTIONS = [
   { label: "Draft", value: "draft" },
   { label: "Published", value: "published" },

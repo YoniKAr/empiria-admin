@@ -7,6 +7,8 @@ import Pagination from "@/components/Pagination";
 import type { UserRole } from "@/lib/types";
 import { Eye } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const ROLE_OPTIONS = [
   { label: "Attendee", value: "attendee" },
   { label: "Organizer", value: "organizer" },

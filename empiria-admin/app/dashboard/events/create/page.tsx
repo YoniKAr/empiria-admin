@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import AdminCreateEventWizard from './AdminCreateEventWizard';
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   searchParams: Promise<{ edit?: string }>;
 }

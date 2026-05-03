@@ -43,6 +43,8 @@ export interface EventFormInput {
   ticket_tiers: TicketTierInput[];
   seating_type?: string;
   seating_config?: Record<string, unknown> | null;
+  pass_processing_fee?: boolean;
+  charge_ticket_tax?: boolean;
 }
 
 interface RevenueSplitInput {
@@ -131,6 +133,8 @@ export async function adminCreateEvent(
       total_capacity: totalCapacity,
       seating_type: form.seating_type || "general_admission",
       seating_config: form.seating_config || {},
+      pass_processing_fee: form.pass_processing_fee ?? false,
+      charge_ticket_tax: form.charge_ticket_tax ?? false,
       status: "draft",
       source_app: "admin",
     })
@@ -239,6 +243,8 @@ export async function adminUpdateEvent(
       total_capacity: totalCapacity,
       seating_type: form.seating_type || "general_admission",
       seating_config: form.seating_config || {},
+      pass_processing_fee: form.pass_processing_fee ?? false,
+      charge_ticket_tax: form.charge_ticket_tax ?? false,
     })
     .eq("id", eventId);
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseAdmin } from "./supabase";
 import { requireAdmin } from "./admin-guard";
+import { fetchRatesUSD, convertAmount } from "./exchange-rates";
 import { getStripe } from "./stripe";
 import { toStripeAmount } from "./utils";
 import { sendTicketCancellationEmail } from "./email";
@@ -36,10 +37,11 @@ function db() {
 // ═══════════════════════════════════════════
 
 export async function getDashboardKpis(): Promise<DashboardKpis> {
-  await adminGuard();
+  const admin = await adminGuard();
   const supabase = db();
+  const toCurrency = (admin.default_currency || "cad").toUpperCase();
 
-  const [ordersRes, usersRes, eventsRes] = await Promise.all([
+  const [ordersRes, usersRes, eventsRes, rates] = await Promise.all([
     supabase
       .from("orders")
       .select("total_amount, platform_fee_amount, currency")
@@ -52,15 +54,17 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
       .from("events")
       .select("id, total_tickets_sold", { count: "exact" })
       .is("deleted_at", null),
+    fetchRatesUSD(),
   ]);
 
   const orders: any[] = ordersRes.data ?? [];
-  const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount), 0);
-  const platformFees = orders.reduce((sum: number, o: any) => sum + Number(o.platform_fee_amount), 0);
+  const totalRevenue = orders.reduce((sum: number, o: any) =>
+    sum + convertAmount(Number(o.total_amount), o.currency || "cad", toCurrency, rates), 0);
+  const platformFees = orders.reduce((sum: number, o: any) =>
+    sum + convertAmount(Number(o.platform_fee_amount), o.currency || "cad", toCurrency, rates), 0);
   const events: any[] = eventsRes.data ?? [];
   const totalTicketsSold = events.reduce(
-    (sum: number, e: any) => sum + (e.total_tickets_sold ?? 0),
-    0
+    (sum: number, e: any) => sum + (e.total_tickets_sold ?? 0), 0
   );
 
   return {
@@ -70,31 +74,35 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
     totalUsers: usersRes.count ?? 0,
     totalEvents: eventsRes.count ?? 0,
     totalTicketsSold,
-    currency: "cad",
+    currency: toCurrency.toLowerCase(),
   };
 }
 
 export async function getRevenueTimeSeries(days = 30): Promise<RevenueDataPoint[]> {
-  await adminGuard();
+  const admin = await adminGuard();
   const supabase = db();
+  const toCurrency = (admin.default_currency || "cad").toUpperCase();
 
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const { data } = await supabase
-    .from("orders")
-    .select("total_amount, platform_fee_amount, created_at")
-    .eq("status", "completed")
-    .gte("created_at", since.toISOString())
-    .order("created_at", { ascending: true });
+  const [{ data }, rates] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("total_amount, platform_fee_amount, currency, created_at")
+      .eq("status", "completed")
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true }),
+    fetchRatesUSD(),
+  ]);
 
   const orders: any[] = data ?? [];
   const map = new Map<string, { revenue: number; platformFees: number; orders: number }>();
   for (const o of orders) {
     const date = o.created_at.slice(0, 10);
     const existing = map.get(date) ?? { revenue: 0, platformFees: 0, orders: 0 };
-    existing.revenue += Number(o.total_amount);
-    existing.platformFees += Number(o.platform_fee_amount);
+    existing.revenue += convertAmount(Number(o.total_amount), o.currency || "cad", toCurrency, rates);
+    existing.platformFees += convertAmount(Number(o.platform_fee_amount), o.currency || "cad", toCurrency, rates);
     existing.orders += 1;
     map.set(date, existing);
   }
@@ -575,13 +583,17 @@ export async function toggleCategoryActive(categoryId: string, isActive: boolean
 // ═══════════════════════════════════════════
 
 export async function getRevenueByEvent() {
-  await adminGuard();
+  const admin = await adminGuard();
   const supabase = db();
+  const toCurrency = (admin.default_currency || "cad").toUpperCase();
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select("event_id, total_amount, platform_fee_amount, organizer_payout_amount, currency")
-    .eq("status", "completed");
+  const [{ data, error }, rates] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("event_id, total_amount, platform_fee_amount, organizer_payout_amount, currency")
+      .eq("status", "completed"),
+    fetchRatesUSD(),
+  ]);
 
   if (error) throw new Error(error.message);
 
@@ -618,11 +630,11 @@ export async function getRevenueByEvent() {
       platformFees: 0,
       organizerPayout: 0,
       orderCount: 0,
-      currency: row.currency,
+      currency: toCurrency.toLowerCase(),
     };
-    existing.totalRevenue += Number(row.total_amount);
-    existing.platformFees += Number(row.platform_fee_amount);
-    existing.organizerPayout += Number(row.organizer_payout_amount);
+    existing.totalRevenue += convertAmount(Number(row.total_amount), row.currency || "cad", toCurrency, rates);
+    existing.platformFees += convertAmount(Number(row.platform_fee_amount), row.currency || "cad", toCurrency, rates);
+    existing.organizerPayout += convertAmount(Number(row.organizer_payout_amount || 0), row.currency || "cad", toCurrency, rates);
     existing.orderCount += 1;
     map.set(row.event_id, existing);
   }
@@ -662,12 +674,17 @@ export async function updateAdminProfile(formData: FormData) {
   const firstName = formData.get("first_name") as string;
   const lastName = formData.get("last_name") as string;
   const avatarUrl = formData.get("avatar_url") as string;
+  const currency = formData.get("currency") as string;
 
+  const VALID_CURRENCIES = ["cad", "usd", "eur", "gbp", "aud", "inr", "jpy", "sgd", "mxn", "brl"];
   const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
 
   const updateData: Record<string, string | null> = {};
   if (fullName !== null) updateData.full_name = fullName;
   if (avatarUrl !== undefined && avatarUrl !== null) updateData.avatar_url = avatarUrl;
+  if (currency && VALID_CURRENCIES.includes(currency.toLowerCase())) {
+    updateData.default_currency = currency.toLowerCase();
+  }
 
   if (Object.keys(updateData).length === 0) return;
 

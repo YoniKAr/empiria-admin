@@ -65,6 +65,7 @@ export default function ProfileForm({
 
   return (
     <form action={handleAction} className="space-y-12 pb-16">
+      {/* Avatar */}
       <div className="flex items-center gap-6">
         <div className="relative w-[88px] h-[88px] rounded-full overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
           {currentAvatarUrl ? (
@@ -103,6 +104,7 @@ export default function ProfileForm({
         </div>
       </div>
 
+      {/* Name */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div className="flex flex-col gap-3">
           <label className="text-[12px] font-bold tracking-[0.08em] text-slate-400 uppercase">First Name</label>
@@ -126,7 +128,8 @@ export default function ProfileForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-b border-slate-100/50 pb-12">
+      {/* Email */}
+      <div className="flex flex-col gap-3">
         <label className="text-[12px] font-bold tracking-[0.08em] text-slate-400 uppercase">Email Address</label>
         <input
           type="email"

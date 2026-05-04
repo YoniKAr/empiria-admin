@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { getDashboardKpis } from "@/lib/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,6 +22,8 @@ interface DashboardData {
     total: number;
   };
   recentEvents: any[];
+  adminName: string;
+  adminAvatarUrl: string | null;
 }
 
 // ─── Sub components ───
@@ -132,9 +136,30 @@ const QUICK_LINKS = [
 // ─── Main component ───
 
 export default function DashboardClient({ data }: { data: DashboardData }) {
-  const ticketPercent = data.totalTicketsSold > 0
-    ? Math.min(Math.round((data.totalTicketsSold / (data.totalTicketsSold + 100)) * 100), 100)
-    : 0;
+  const [live, setLive] = useState({
+    totalRevenue: data.totalRevenue,
+    platformFees: data.platformFees,
+    totalOrders: data.totalOrders,
+  });
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const kpis = await getDashboardKpis();
+        setLive(prev => {
+          if (kpis.totalRevenue !== prev.totalRevenue || kpis.platformFees !== prev.platformFees) {
+            setFlash(true);
+            setTimeout(() => setFlash(false), 900);
+            return { totalRevenue: kpis.totalRevenue, platformFees: kpis.platformFees, totalOrders: kpis.totalOrders };
+          }
+          return prev;
+        });
+      } catch {}
+    };
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -142,7 +167,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem" }}>
         <div>
           <h1 style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.04em", margin: 0, marginBottom: 10 }}>
-            Welcome in, Admin
+            Welcome in, {data.adminName}
           </h1>
           <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
             {[
@@ -180,40 +205,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       {/* ── TOP CARD ROW ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1.1fr 1.3fr", gap: "1rem", marginBottom: "1rem" }}>
         {/* Profile Card */}
-        <Card>
+        <Link href="/dashboard/settings" style={{ textDecoration: "none", color: "inherit" }}>
+        <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <div
             style={{
               width: 78, height: 78, borderRadius: 20,
               background: "linear-gradient(135deg, #FF944D 0%, #F5C842 100%)",
-              margin: "0.25rem auto 0.75rem",
+              marginBottom: "0.75rem",
+              overflow: "hidden",
               display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <svg width="42" height="42" fill="none" viewBox="0 0 24 24">
-              <circle cx="9" cy="8" r="3.2" fill="rgba(255,255,255,0.92)" />
-              <circle cx="15.5" cy="8" r="3.2" fill="rgba(255,255,255,0.45)" />
-              <path d="M2 21c0-4.5 3-7.5 6.5-7.5h7C19 13.5 22 16.5 22 21"
-                stroke="rgba(255,255,255,0.92)" strokeWidth="1.6" fill="none" />
-            </svg>
+            {data.adminAvatarUrl ? (
+              <img
+                src={data.adminAvatarUrl}
+                alt={data.adminName}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <svg width="42" height="42" fill="none" viewBox="0 0 24 24">
+                <circle cx="9" cy="8" r="3.2" fill="rgba(255,255,255,0.92)" />
+                <circle cx="15.5" cy="8" r="3.2" fill="rgba(255,255,255,0.45)" />
+                <path d="M2 21c0-4.5 3-7.5 6.5-7.5h7C19 13.5 22 16.5 22 21"
+                  stroke="rgba(255,255,255,0.92)" strokeWidth="1.6" fill="none" />
+              </svg>
+            )}
           </div>
-          <p style={{ textAlign: "center", fontWeight: 700, fontSize: 16, margin: 0 }}>Platform Admin</p>
-          <p style={{ textAlign: "center", fontSize: 12, color: "#aaa", margin: "3px 0 18px" }}>Administrator</p>
-          <div style={{ textAlign: "center" }}>
-            <span
-              style={{
-                display: "inline-block",
-                background: "#E07010",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                borderRadius: 999,
-                padding: "7px 24px",
-              }}
-            >
-              {formatCurrencyLocal(data.platformFees, data.currency)}
-            </span>
-          </div>
+          <p style={{ textAlign: "center", fontWeight: 700, fontSize: 16, margin: 0 }}>{data.adminName}</p>
+          <p style={{ textAlign: "center", fontSize: 12, color: "#aaa", margin: "3px 0 0" }}>Administrator</p>
         </Card>
+        </Link>
 
         {/* Total Revenue */}
         <Link
@@ -257,38 +279,69 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         </Link>
 
-        {/* Tickets Sold */}
+        {/* Revenue Split */}
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#444" }}>Tickets Sold</span>
-            <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.04em" }}>{ticketPercent}%</span>
+          <style>{`
+            @keyframes flashPulse {
+              0%   { opacity: 1; }
+              30%  { opacity: 0.4; }
+              60%  { opacity: 1; }
+              80%  { opacity: 0.6; }
+              100% { opacity: 1; }
+            }
+            .revenue-flash { animation: flashPulse 0.9s ease; }
+            @keyframes livePulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50%       { opacity: 0.4; transform: scale(0.8); }
+            }
+            .live-dot { animation: livePulse 2s ease-in-out infinite; }
+          `}</style>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#444" }}>Revenue Split</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span className="live-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+              <span style={{ fontSize: 11, color: "#aaa" }}>Live</span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {[
-              { label: "Sold", pct: ticketPercent, color: "#E07010" },
-              { label: "Fees", pct: data.totalOrders > 0 ? Math.round((data.platformFees / data.totalRevenue) * 100) || 0 : 0, color: "#F5C842" },
-              { label: "Free", pct: 3, color: "#e8e8e8" },
-            ].map((row) => (
-              <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, color: "#bbb", minWidth: 28, textAlign: "right" }}>{row.label}</span>
-                <div style={{ flex: 1, height: 8, background: "#f2f2f2", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ width: `${row.pct}%`, height: "100%", background: row.color, borderRadius: 999 }} />
+
+          {live.totalRevenue > 0 ? (() => {
+            const feesPct = Math.round((live.platformFees / live.totalRevenue) * 100);
+            const payoutPct = 100 - feesPct;
+            const avgOrder = live.totalOrders > 0 ? live.totalRevenue / live.totalOrders : 0;
+
+            return (
+              <div className={flash ? "revenue-flash" : ""}>
+                {/* Split bar */}
+                <div style={{ display: "flex", height: 10, borderRadius: 999, overflow: "hidden", marginBottom: "0.75rem" }}>
+                  <div style={{ width: `${feesPct}%`, background: "#E07010", transition: "width 0.6s ease" }} />
+                  <div style={{ flex: 1, background: "#e8e8e8" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+                  <span style={{ fontSize: 11, color: "#E07010", fontWeight: 600 }}>{feesPct}% platform</span>
+                  <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600 }}>{payoutPct}% organizers</span>
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { label: "Platform fees", value: formatCurrencyLocal(live.platformFees, data.currency), color: "#E07010" },
+                    { label: "Organizer payouts", value: formatCurrencyLocal(live.totalRevenue - live.platformFees, data.currency), color: "#555" },
+                    { label: "Avg. order value", value: formatCurrencyLocal(avgOrder, data.currency), color: "#555" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: "#aaa" }}>{label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color }}>{value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-            <div style={{ height: 1, background: "#eee", margin: "2px 0" }} />
-            {[
-              { label: "Target", pct: 85, color: "#1a1209" },
-              { label: "", pct: 26, color: "#ef4444" },
-            ].map((row, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, color: "#bbb", minWidth: 28, textAlign: "right" }}>{row.label}</span>
-                <div style={{ flex: 1, height: 8, background: "#f2f2f2", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ width: `${row.pct}%`, height: "100%", background: row.color, borderRadius: 999 }} />
-                </div>
-              </div>
-            ))}
-          </div>
+            );
+          })() : (
+            <div style={{ textAlign: "center", padding: "1.5rem 0", color: "#ccc", fontSize: 13 }}>
+              No revenue yet
+            </div>
+          )}
         </Card>
 
         {/* Recent Orders — dark */}

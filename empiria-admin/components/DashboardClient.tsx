@@ -203,10 +203,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </div>
 
       {/* ── TOP CARD ROW ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1.1fr 1.3fr", gap: "1rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "1rem" }}>
         {/* Profile Card */}
-        <Link href="/dashboard/settings" style={{ textDecoration: "none", color: "inherit" }}>
-        <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <Link href="/dashboard/settings" style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
+        <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", height: "100%", boxSizing: "border-box" }}>
           <div
             style={{
               width: 78, height: 78, borderRadius: 20,

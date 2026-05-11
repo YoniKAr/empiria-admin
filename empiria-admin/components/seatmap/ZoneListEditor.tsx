@@ -154,6 +154,10 @@ export function ZoneListEditor({
             0
           );
 
+          const otherUsedColors = zones
+            .filter((z) => z.id !== zone.id)
+            .map((z) => z.color);
+
           return (
             <div
               key={zone.id}
@@ -217,21 +221,55 @@ export function ZoneListEditor({
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Color</Label>
                         <div className="flex gap-1.5 flex-wrap">
-                          {ZONE_COLORS.map((color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              className={`size-6 rounded-full border-2 transition-all ${
-                                zone.color === color
-                                  ? "border-foreground scale-110"
-                                  : "border-transparent hover:border-muted-foreground/40"
-                              }`}
-                              style={{ backgroundColor: color }}
-                              onClick={() =>
-                                updateZone(zone.id, { color })
+                          {ZONE_COLORS.map((color) => {
+                            const isUsedByOther = otherUsedColors.includes(color);
+                            const isSelected = zone.color === color;
+                            return (
+                              <button
+                                key={color}
+                                type="button"
+                                disabled={isUsedByOther}
+                                className={`size-6 rounded-full border-2 transition-all ${
+                                  isSelected
+                                    ? "border-foreground scale-110"
+                                    : isUsedByOther
+                                      ? "border-transparent opacity-30 cursor-not-allowed"
+                                      : "border-transparent hover:border-muted-foreground/40"
+                                }`}
+                                style={{ backgroundColor: color }}
+                                onClick={() =>
+                                  updateZone(zone.id, { color })
+                                }
+                              />
+                            );
+                          })}
+                          <label
+                            className={`size-6 rounded-full border-2 cursor-pointer overflow-hidden relative transition-all ${
+                              !ZONE_COLORS.includes(zone.color)
+                                ? "border-foreground scale-110"
+                                : "border-dashed border-muted-foreground"
+                            }`}
+                            style={{
+                              backgroundColor: !ZONE_COLORS.includes(zone.color)
+                                ? zone.color
+                                : undefined,
+                            }}
+                            title="Custom color"
+                          >
+                            <input
+                              type="color"
+                              value={zone.color}
+                              onChange={(e) =>
+                                updateZone(zone.id, { color: e.target.value })
                               }
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             />
-                          ))}
+                            {ZONE_COLORS.includes(zone.color) && (
+                              <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-[10px] font-bold">
+                                +
+                              </span>
+                            )}
+                          </label>
                         </div>
                       </div>
                     </div>

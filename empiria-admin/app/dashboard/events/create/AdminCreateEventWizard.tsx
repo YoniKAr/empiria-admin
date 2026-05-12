@@ -107,6 +107,8 @@ interface EventFormData {
   }>;
   pass_processing_fee: boolean;
   charge_ticket_tax: boolean;
+  refund_policy: 'fully_refundable' | 'non_refundable' | 'partial_refundable';
+  show_remaining_seats: boolean;
 }
 
 interface Category {
@@ -190,6 +192,8 @@ const INITIAL_FORM: EventFormData = {
   revenue_splits: [],
   pass_processing_fee: false,
   charge_ticket_tax: false,
+  refund_policy: 'non_refundable',
+  show_remaining_seats: true,
 };
 
 function toSlug(text: string): string {
@@ -298,8 +302,10 @@ export default function AdminCreateEventWizard({
         seating_type: (existingEvent as ExistingEvent & { seating_type?: SeatingMode }).seating_type || 'general_admission',
         seating_config: (existingEvent as ExistingEvent & { seating_config?: SeatingConfig }).seating_config || null,
         revenue_splits: [],
-        pass_processing_fee: false,
-        charge_ticket_tax: false,
+        pass_processing_fee: (existingEvent as ExistingEvent & { pass_processing_fee?: boolean }).pass_processing_fee || false,
+        charge_ticket_tax: (existingEvent as ExistingEvent & { charge_ticket_tax?: boolean }).charge_ticket_tax || false,
+        refund_policy: (existingEvent as ExistingEvent & { refund_policy?: string }).refund_policy as EventFormData['refund_policy'] || 'non_refundable',
+        show_remaining_seats: (existingEvent as ExistingEvent & { show_remaining_seats?: boolean }).show_remaining_seats ?? true,
       };
     }
     const currency = defaultCurrency || 'cad';
@@ -607,6 +613,8 @@ export default function AdminCreateEventWizard({
       seating_config: form.seating_config as Record<string, unknown> | null,
       pass_processing_fee: form.pass_processing_fee,
       charge_ticket_tax: form.charge_ticket_tax,
+      refund_policy: form.refund_policy,
+      show_remaining_seats: form.show_remaining_seats,
     };
   };
 
@@ -849,6 +857,15 @@ export default function AdminCreateEventWizard({
               >
                 Continue
                 <ChevronRight className="size-4" />
+              </Button>
+            ) : existingEvent?.status === 'published' ? (
+              <Button
+                onClick={saveDraft}
+                disabled={saving}
+                className="gap-1.5 bg-primary px-8 text-primary-foreground hover:bg-primary/90"
+              >
+                <Save className="size-4" />
+                {saving ? 'Saving...' : 'Save Details'}
               </Button>
             ) : (
               <Button
@@ -2160,6 +2177,76 @@ function StepTicketsAndSeating({
           </div>
         </div>
 
+        {/* ─── Refund Policy ──────────────────────────────────────────── */}
+        <Separator />
+        <div>
+          <h3 className="text-sm font-medium text-foreground mb-2">Refund Policy</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Choose a refund policy for this event. This will be shown to attendees before purchase.
+          </p>
+          <div className="space-y-2">
+            {([
+              { value: 'fully_refundable' as const, label: 'Fully Refundable', desc: 'Attendees can request a full refund at any time before the event.' },
+              { value: 'non_refundable' as const, label: 'Non-Refundable', desc: 'No refunds will be issued. All sales are final.' },
+              { value: 'partial_refundable' as const, label: 'Refundable After Contacting Organizer', desc: 'Attendees must contact the organizer to request a refund. Refunds are at the organizer\'s discretion.' },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all w-full ${
+                  form.refund_policy === opt.value
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                }`}
+                onClick={() => updateField('refund_policy', opt.value)}
+              >
+                <div className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 mt-0.5 ${
+                  form.refund_policy === opt.value ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+                }`}>
+                  {form.refund_policy === opt.value && (
+                    <svg className="size-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div className="font-medium text-sm">{opt.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── Show Remaining Seats ─────────────────────────────────────── */}
+        <Separator />
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Show Remaining Tickets</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              When enabled, attendees will see how many tickets are left for each tier (e.g. &quot;12 remaining&quot;). Disable to hide this information.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                form.show_remaining_seats ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}
+              onClick={() => updateField('show_remaining_seats', !form.show_remaining_seats)}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  form.show_remaining_seats ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <span className="text-sm font-medium text-foreground">
+              {form.show_remaining_seats ? 'Show remaining ticket count to attendees' : 'Hide remaining ticket count'}
+            </span>
+          </div>
+        </div>
+
         {/* ─── Revenue Splits ──────────────────────────────────────────── */}
         <Separator />
         <RevenueSplitsEditor
@@ -2599,7 +2686,7 @@ function StepReview({
         )}
 
         <div className="rounded-xl border p-5">
-          <h3 className="text-sm font-semibold mb-3">Fee Settings</h3>
+          <h3 className="text-sm font-semibold mb-3">Fee & Policy Settings</h3>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Convenience fee</span>
             <span>{form.pass_processing_fee ? 'Passed to attendee' : 'Absorbed by organizer'}</span>
@@ -2607,6 +2694,15 @@ function StepReview({
           <div className="flex justify-between text-sm mt-1.5">
             <span className="text-muted-foreground">Ticket sales tax</span>
             <span>{form.charge_ticket_tax ? 'Automatic (location-based)' : 'Not charging'}</span>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Refund Policy</span>
+            <span>{form.refund_policy === 'fully_refundable' ? 'Fully Refundable' : form.refund_policy === 'non_refundable' ? 'Non-Refundable' : 'Contact Organizer'}</span>
+          </div>
+          <div className="flex justify-between text-sm mt-1.5">
+            <span className="text-muted-foreground">Show Remaining Tickets</span>
+            <span>{form.show_remaining_seats ? 'Visible' : 'Hidden'}</span>
           </div>
         </div>
 

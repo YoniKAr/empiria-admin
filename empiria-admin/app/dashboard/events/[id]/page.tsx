@@ -175,6 +175,18 @@ export default async function EventDetailPage(props: {
                 {event.charge_ticket_tax ? 'Charging 13% HST' : 'Not charging'}
               </dd>
             </div>
+            <div>
+              <dt className="text-slate-500">Refund Policy</dt>
+              <dd className="text-slate-900">
+                {event.refund_policy === 'fully_refundable' ? 'Fully Refundable' : event.refund_policy === 'partial_refundable' ? 'Contact Organizer' : 'Non-Refundable'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Show Remaining</dt>
+              <dd className="text-slate-900">
+                {event.show_remaining_seats ? 'Visible' : 'Hidden'}
+              </dd>
+            </div>
             <div><dt className="text-slate-500">Created</dt><dd className="text-slate-900">{formatDateTime(event.created_at)}</dd></div>
             <div><dt className="text-slate-500">Source App</dt><dd className="text-slate-900">{event.source_app ?? "—"}</dd></div>
           </dl>

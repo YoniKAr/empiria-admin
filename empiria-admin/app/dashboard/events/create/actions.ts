@@ -47,6 +47,8 @@ export interface EventFormInput {
   charge_ticket_tax?: boolean;
   refund_policy?: string;
   show_remaining_seats?: boolean;
+  sponsor_logos?: string[];
+  trailer_url?: string;
 }
 
 interface RevenueSplitInput {
@@ -139,6 +141,8 @@ export async function adminCreateEvent(
       charge_ticket_tax: form.charge_ticket_tax ?? false,
       refund_policy: form.refund_policy || "non_refundable",
       show_remaining_seats: form.show_remaining_seats ?? true,
+      sponsor_logos: form.sponsor_logos || [],
+      trailer_url: form.trailer_url || null,
       status: "draft",
       source_app: "admin",
     })
@@ -251,6 +255,8 @@ export async function adminUpdateEvent(
       charge_ticket_tax: form.charge_ticket_tax ?? false,
       refund_policy: form.refund_policy || "non_refundable",
       show_remaining_seats: form.show_remaining_seats ?? true,
+      sponsor_logos: form.sponsor_logos || [],
+      trailer_url: form.trailer_url || null,
     })
     .eq("id", eventId);
 

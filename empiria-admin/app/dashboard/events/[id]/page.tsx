@@ -13,6 +13,7 @@ import { ArrowLeft, Star, Ban, CheckCircle, Eye } from "lucide-react";
 import { IssueTicketsModal } from "./IssueTicketsModal";
 import { AdminTicketTable } from "./AdminTicketTable";
 import { SeatmapSection } from "./SeatmapSection";
+import { SendUpdateForm } from "./SendUpdateForm";
 
 export const dynamic = "force-dynamic";
 
@@ -333,6 +334,14 @@ export default async function EventDetailPage(props: {
         </div>
         <AdminTicketTable tickets={tickets} />
       </div>
+
+      {/* Send Update to Ticket Holders */}
+      {tickets.length > 0 && (
+        <SendUpdateForm
+          eventId={id}
+          ticketHolderCount={new Set(tickets.map(t => t.attendee_email).filter(Boolean)).size}
+        />
+      )}
 
       {/* Recent Orders for this event */}
       <div className="bg-white rounded-xl border border-slate-200">

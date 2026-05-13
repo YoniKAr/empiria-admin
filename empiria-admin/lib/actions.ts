@@ -811,6 +811,42 @@ export async function uploadEventGalleryImage(
   return { success: true, data: { photo_url } };
 }
 
+export async function uploadSponsorLogo(
+  formData: FormData
+): Promise<ImageUploadResult<{ logo_url: string }>> {
+  const admin = await adminGuard();
+
+  const file = formData.get("sponsor_logo") as File | null;
+  if (!file || file.size === 0) return { success: false, error: "No file provided" };
+
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+  if (!allowed.includes(file.type)) {
+    return { success: false, error: "File must be a JPEG, PNG, WebP, GIF, or SVG image" };
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    return { success: false, error: "File must be under 2 MB" };
+  }
+
+  const supabase = db();
+  const ext = file.name.split(".").pop() ?? "png";
+  const safeSub = admin.auth0_id.replace(/\|/g, "_");
+  const uniqueId = crypto.randomUUID();
+  const path = `${safeSub}/sponsors/${uniqueId}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("events_gallery")
+    .upload(path, file, { contentType: file.type });
+
+  if (uploadError) return { success: false, error: uploadError.message };
+
+  const { data: publicUrlData } = supabase.storage.from("events_gallery").getPublicUrl(path);
+
+  const logo_url = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+  return { success: true, data: { logo_url } };
+}
+
 // ═══════════════════════════════════════════
 //  CANCEL TICKET WITH REFUND (Admin)
 // ═══════════════════════════════════════════
@@ -1508,4 +1544,363 @@ export async function adminSaveRevenueSplits(
 
   revalidatePath(`/dashboard/events/${eventId}`);
   return { success: true, data: { count: splits.length } };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SEND EVENT UPDATE EMAIL
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function sendEventUpdate(input: {
+  eventId: string;
+  subject: string;
+  message: string;
+}): Promise<ActionResult<{ sent: number }>> {
+  await adminGuard();
+  const supabase = getSupabaseAdmin();
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("id, title, venue_name, city")
+    .eq("id", input.eventId)
+    .single();
+
+  if (!event) {
+    return { success: false, error: "Event not found" };
+  }
+
+  if (!input.subject.trim() || !input.message.trim()) {
+    return { success: false, error: "Subject and message are required" };
+  }
+
+  // Get unique attendee emails from tickets for this event
+  const { data: tickets } = await supabase
+    .from("tickets")
+    .select("attendee_email, attendee_name")
+    .eq("event_id", input.eventId)
+    .in("status", ["active", "checked_in"]);
+
+  if (!tickets || tickets.length === 0) {
+    return { success: false, error: "No ticket holders found for this event" };
+  }
+
+  // Deduplicate by email
+  const emailMap = new Map<string, string>();
+  for (const t of tickets) {
+    if (t.attendee_email && !emailMap.has(t.attendee_email)) {
+      emailMap.set(t.attendee_email, t.attendee_name || "");
+    }
+  }
+
+  const recipients = Array.from(emailMap.entries());
+  if (recipients.length === 0) {
+    return { success: false, error: "No valid email addresses found" };
+  }
+
+  const { resend } = await import("./resend");
+  const venue = [event.venue_name, event.city].filter(Boolean).join(", ");
+
+  let sentCount = 0;
+  const batchSize = 50;
+
+  for (let i = 0; i < recipients.length; i += batchSize) {
+    const batch = recipients.slice(i, i + batchSize);
+    const promises = batch.map(([email, name]) =>
+      resend.emails
+        .send({
+          from: "Empiria <tickets@empiriaindia.com>",
+          to: email,
+          subject: input.subject,
+          html: buildUpdateEmailHtml({
+            attendeeName: name,
+            eventTitle: event.title,
+            venue,
+            subject: input.subject,
+            message: input.message,
+          }),
+        })
+        .then(() => {
+          sentCount++;
+        })
+        .catch((err) => {
+          console.error(`Failed to send to ${email}:`, err);
+        })
+    );
+    await Promise.all(promises);
+  }
+
+  return { success: true, data: { sent: sentCount } };
+}
+
+function buildUpdateEmailHtml(data: {
+  attendeeName: string;
+  eventTitle: string;
+  venue: string;
+  subject: string;
+  message: string;
+}): string {
+  const messageHtml = data.message.replace(/\n/g, "<br />");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Update</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f3f4f6;">
+    <tr>
+      <td align="center" style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background: #111827; padding: 24px 32px; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.025em;">Empiria</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 32px 16px;">
+              <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #111827;">Event Update</h2>
+              <p style="margin: 0; font-size: 15px; color: #6b7280; line-height: 1.5;">
+                Hi ${data.attendeeName || "there"}, here\u2019s an update about an event you have tickets for.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fffbeb; border-radius: 8px; border: 1px solid #fde68a;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="margin: 0 0 4px; font-size: 17px; font-weight: 700; color: #92400e;">${data.eventTitle}</h3>
+                    ${data.venue ? `<p style="margin: 0; font-size: 14px; color: #b45309;">${data.venue}</p>` : ""}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 32px;">
+              <h3 style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #111827;">${data.subject}</h3>
+              <div style="font-size: 15px; color: #374151; line-height: 1.7; background: #f9fafb; padding: 16px 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                ${messageHtml}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 32px 24px;" align="center">
+              <a href="https://shop.empiriaindia.com" style="display: inline-block; padding: 10px 24px; background: #111827; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+                View Event
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.5;">
+                You\u2019re receiving this because you have tickets for ${data.eventTitle}. Sent by Empiria.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MEDIA MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface EventMediaItem {
+  eventId: string;
+  eventTitle: string;
+  eventSlug: string;
+  type: 'cover' | 'gallery' | 'sponsor' | 'trailer';
+  url: string;
+  index?: number;
+}
+
+export async function getEventMedia(filters?: {
+  search?: string;
+  type?: string;
+}): Promise<EventMediaItem[]> {
+  await adminGuard();
+  const supabase = db();
+
+  let query = supabase
+    .from('events')
+    .select('id, title, slug, cover_image_url, sponsor_logos, trailer_url')
+    .order('created_at', { ascending: false });
+
+  if (filters?.search) {
+    query = query.ilike('title', `%${filters.search}%`);
+  }
+
+  const { data: events, error } = await query;
+  if (error || !events) return [];
+
+  const items: EventMediaItem[] = [];
+
+  for (const event of events) {
+    // Cover image
+    if (event.cover_image_url) {
+      items.push({
+        eventId: event.id,
+        eventTitle: event.title,
+        eventSlug: event.slug,
+        type: 'cover',
+        url: event.cover_image_url,
+      });
+    }
+
+    // Sponsor logos
+    const logos = (event.sponsor_logos as string[]) || [];
+    logos.forEach((url, idx) => {
+      items.push({
+        eventId: event.id,
+        eventTitle: event.title,
+        eventSlug: event.slug,
+        type: 'sponsor',
+        url,
+        index: idx,
+      });
+    });
+
+    // Trailer
+    if (event.trailer_url) {
+      items.push({
+        eventId: event.id,
+        eventTitle: event.title,
+        eventSlug: event.slug,
+        type: 'trailer',
+        url: event.trailer_url,
+      });
+    }
+  }
+
+  // Gallery images (from storage)
+  // We list the events_gallery bucket for each event that has media
+  const eventsWithGallery = events.slice(0, 50); // limit gallery scan
+  for (const event of eventsWithGallery) {
+    const { data: files } = await supabase.storage
+      .from('events_gallery')
+      .list(String(event.id), { limit: 50 });
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        if (!file.name || file.name.startsWith('.') || !file.id) continue;
+        // Skip sponsors subfolder items (they're already listed above)
+        if (file.name === 'sponsors' || file.metadata?.mimetype === 'application/x-directory') continue;
+        const { data: publicUrl } = supabase.storage
+          .from('events_gallery')
+          .getPublicUrl(`${event.id}/${file.name}`);
+        items.push({
+          eventId: event.id,
+          eventTitle: event.title,
+          eventSlug: event.slug,
+          type: 'gallery',
+          url: publicUrl.publicUrl,
+        });
+      }
+    }
+  }
+
+  // Filter by type if specified
+  if (filters?.type && filters.type !== 'all') {
+    return items.filter((i) => i.type === filters.type);
+  }
+
+  return items;
+}
+
+export async function deleteEventMedia(input: {
+  eventId: string;
+  type: 'cover' | 'gallery' | 'sponsor' | 'trailer';
+  url: string;
+  index?: number;
+}): Promise<ImageUploadResult> {
+  await adminGuard();
+  const supabase = db();
+
+  const { eventId, type, url, index } = input;
+
+  if (type === 'cover') {
+    // Clear cover_image_url
+    const { error } = await supabase
+      .from('events')
+      .update({ cover_image_url: null })
+      .eq('id', eventId);
+    if (error) return { success: false, error: error.message };
+
+    // Try deleting from storage
+    try {
+      const urlObj = new URL(url);
+      const pathMatch = urlObj.pathname.match(/\/object\/public\/Cover_image\/(.+)/);
+      if (pathMatch) {
+        await supabase.storage.from('Cover_image').remove([pathMatch[1]]);
+      }
+    } catch { /* ignore storage delete errors */ }
+
+    return { success: true, data: {} };
+  }
+
+  if (type === 'sponsor') {
+    // Remove from sponsor_logos array
+    const { data: event } = await supabase
+      .from('events')
+      .select('sponsor_logos')
+      .eq('id', eventId)
+      .single();
+
+    if (!event) return { success: false, error: 'Event not found' };
+
+    const logos = ((event.sponsor_logos as string[]) || []).filter((_, i) =>
+      index !== undefined ? i !== index : true
+    );
+
+    const { error } = await supabase
+      .from('events')
+      .update({ sponsor_logos: logos })
+      .eq('id', eventId);
+    if (error) return { success: false, error: error.message };
+
+    // Try deleting from storage
+    try {
+      const urlObj = new URL(url);
+      const pathMatch = urlObj.pathname.match(/\/object\/public\/events_gallery\/(.+)/);
+      if (pathMatch) {
+        const cleanPath = pathMatch[1].split('?')[0];
+        await supabase.storage.from('events_gallery').remove([cleanPath]);
+      }
+    } catch { /* ignore */ }
+
+    return { success: true, data: {} };
+  }
+
+  if (type === 'trailer') {
+    const { error } = await supabase
+      .from('events')
+      .update({ trailer_url: null })
+      .eq('id', eventId);
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: {} };
+  }
+
+  if (type === 'gallery') {
+    // Delete from storage
+    try {
+      const urlObj = new URL(url);
+      const pathMatch = urlObj.pathname.match(/\/object\/public\/events_gallery\/(.+)/);
+      if (pathMatch) {
+        const cleanPath = pathMatch[1].split('?')[0];
+        const { error } = await supabase.storage.from('events_gallery').remove([cleanPath]);
+        if (error) return { success: false, error: error.message };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to delete gallery image' };
+    }
+    return { success: true, data: {} };
+  }
+
+  return { success: false, error: 'Unknown media type' };
 }

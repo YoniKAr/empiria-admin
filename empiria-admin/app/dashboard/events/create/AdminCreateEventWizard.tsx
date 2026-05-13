@@ -45,12 +45,13 @@ import {
   SelectValue,
 } from '@/components/select'; //
 import { adminCreateEvent, adminUpdateEvent, adminPublishEvent, adminSaveRevenueSplits } from './actions';
-import { uploadEventCoverImage, uploadEventGalleryImage } from '@/lib/actions';
+import { uploadEventCoverImage, uploadEventGalleryImage, uploadSponsorLogo } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import { SeatmapDesigner } from '@/components/seatmap/SeatmapDesigner';
 import { SeatRangeEditor } from '@/components/seatmap/SeatRangeEditor';
 import { useImageUpload } from '@/components/seatmap/useImageUpload';
 import { RevenueSplitsEditor } from '@/components/RevenueSplitsEditor';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import type { SeatingMode, SeatingConfig } from '@/lib/seatmap-types';
 import { ZoneListEditor } from '@/components/seatmap/ZoneListEditor';
 
@@ -109,6 +110,8 @@ interface EventFormData {
   charge_ticket_tax: boolean;
   refund_policy: 'fully_refundable' | 'non_refundable' | 'partial_refundable';
   show_remaining_seats: boolean;
+  sponsor_logos: string[];
+  trailer_url: string;
 }
 
 interface Category {
@@ -194,6 +197,8 @@ const INITIAL_FORM: EventFormData = {
   charge_ticket_tax: false,
   refund_policy: 'non_refundable',
   show_remaining_seats: true,
+  sponsor_logos: [],
+  trailer_url: '',
 };
 
 function toSlug(text: string): string {
@@ -306,6 +311,8 @@ export default function AdminCreateEventWizard({
         charge_ticket_tax: (existingEvent as ExistingEvent & { charge_ticket_tax?: boolean }).charge_ticket_tax || false,
         refund_policy: (existingEvent as ExistingEvent & { refund_policy?: string }).refund_policy as EventFormData['refund_policy'] || 'non_refundable',
         show_remaining_seats: (existingEvent as ExistingEvent & { show_remaining_seats?: boolean }).show_remaining_seats ?? true,
+        sponsor_logos: (existingEvent as ExistingEvent & { sponsor_logos?: string[] }).sponsor_logos || [],
+        trailer_url: (existingEvent as ExistingEvent & { trailer_url?: string }).trailer_url || '',
       };
     }
     const currency = defaultCurrency || 'cad';
@@ -615,6 +622,8 @@ export default function AdminCreateEventWizard({
       charge_ticket_tax: form.charge_ticket_tax,
       refund_policy: form.refund_policy,
       show_remaining_seats: form.show_remaining_seats,
+      sponsor_logos: form.sponsor_logos,
+      trailer_url: form.trailer_url,
     };
   };
 
@@ -1559,18 +1568,16 @@ function StepDateVenue({
                 error={errors.address_text}
                 required
               >
-                <div className="relative">
-                  <Search className="absolute top-3.5 left-3 size-4 text-muted-foreground" />
-                  <Input
-                    value={form.address_text}
-                    onChange={(e) =>
-                      updateField('address_text', e.target.value)
-                    }
-                    placeholder="Start typing address..."
-                    aria-invalid={!!errors.address_text}
-                    className="h-11 pl-9"
-                  />
-                </div>
+                <AddressAutocomplete
+                  value={form.address_text}
+                  onChange={(val) => updateField('address_text', val)}
+                  onSelect={(result) => {
+                    if (result.city) updateField('city', result.city);
+                    if (result.postalCode) updateField('zip_code', result.postalCode);
+                  }}
+                  placeholder="Start typing address..."
+                  error={!!errors.address_text}
+                />
               </FormField>
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="City" error={errors.city} required>
@@ -1796,6 +1803,7 @@ function StepTicketsAndSeating({
   primaryOrganizerName: string;
 }) {
   const { uploading, error: uploadError, uploadImage } = useImageUpload();
+  const [isDraggingVenue, setIsDraggingVenue] = useState(false);
   const [imageUrl, setImageUrl] = useState(form.seating_config?.image_url ?? null);
   const [imageWidth, setImageWidth] = useState(form.seating_config?.image_width ?? 0);
   const [imageHeight, setImageHeight] = useState(form.seating_config?.image_height ?? 0);
@@ -1804,6 +1812,19 @@ function StepTicketsAndSeating({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const result = await uploadImage(file);
+    if (result) {
+      setImageUrl(result.url);
+      setImageWidth(result.width);
+      setImageHeight(result.height);
+    }
+  }
+
+  async function handleVenueDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDraggingVenue(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
     const result = await uploadImage(file);
     if (result) {
       setImageUrl(result.url);
@@ -1939,10 +1960,19 @@ function StepTicketsAndSeating({
             <div className="space-y-2">
               <Label>Venue Image</Label>
               {!imageUrl ? (
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer hover:border-primary/50 transition-colors bg-muted/30">
+                <label
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-colors bg-muted/30",
+                    isDraggingVenue ? "border-primary bg-primary/10" : "hover:border-primary/50"
+                  )}
+                  onDragOver={(e) => { e.preventDefault(); setIsDraggingVenue(true); }}
+                  onDragEnter={(e) => { e.preventDefault(); setIsDraggingVenue(true); }}
+                  onDragLeave={() => setIsDraggingVenue(false)}
+                  onDrop={handleVenueDrop}
+                >
                   <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                   <span className="text-sm text-muted-foreground">
-                    {uploading ? 'Uploading...' : 'Click to upload venue image'}
+                    {uploading ? 'Uploading...' : isDraggingVenue ? 'Drop image here' : 'Drag & drop or click to upload venue image'}
                   </span>
                   <span className="text-xs text-muted-foreground mt-1">
                     PNG, JPG, or WebP (max 5MB)
@@ -2277,8 +2307,13 @@ function StepMedia({
 }) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const sponsorInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [isUploadingSponsor, setIsUploadingSponsor] = useState(false);
+  const [isDraggingCover, setIsDraggingCover] = useState(false);
+  const [isDraggingGallery, setIsDraggingGallery] = useState(false);
+  const [isDraggingSponsor, setIsDraggingSponsor] = useState(false);
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2306,6 +2341,33 @@ function StepMedia({
     } finally {
       setIsUploadingCover(false);
       if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
+
+  const handleCoverDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingCover(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Cover image must be under 5 MB', type: 'error' });
+      return;
+    }
+    setIsUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.append('cover_image', file);
+      const res = await uploadEventCoverImage(formData);
+      if (res.success) {
+        updateField('cover_image_url', res.data.cover_image_url);
+        setToast({ message: 'Cover image uploaded', type: 'success' });
+      } else {
+        setToast({ message: res.error, type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Upload failed', type: 'error' });
+    } finally {
+      setIsUploadingCover(false);
     }
   };
 
@@ -2351,6 +2413,37 @@ function StepMedia({
 
   const removePhoto = (idx: number) => {
     updateField('photo_urls', form.photo_urls.filter((_, i) => i !== idx));
+  };
+
+  const handleSponsorFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingSponsor(true);
+    try {
+      const newUrls: string[] = [];
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('sponsor_logo', file);
+        const res = await uploadSponsorLogo(fd);
+        if (res.success) {
+          newUrls.push(res.data.logo_url);
+        } else {
+          setToast({ message: res.error, type: 'error' });
+        }
+      }
+      if (newUrls.length > 0) {
+        updateField('sponsor_logos', [...form.sponsor_logos, ...newUrls]);
+        setToast({ message: `Uploaded ${newUrls.length} sponsor logo(s)`, type: 'success' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Sponsor logo upload failed', type: 'error' });
+    } finally {
+      setIsUploadingSponsor(false);
+      if (sponsorInputRef.current) sponsorInputRef.current.value = '';
+    }
+  };
+
+  const removeSponsorLogo = (idx: number) => {
+    updateField('sponsor_logos', form.sponsor_logos.filter((_, i) => i !== idx));
   };
 
   return (
@@ -2413,14 +2506,27 @@ function StepMedia({
               />
             </div>
           ) : (
-            <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/50">
+            <div
+              className={cn(
+                "flex h-56 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-colors",
+                isDraggingCover
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-muted/50"
+              )}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingCover(true); }}
+              onDragEnter={(e) => { e.preventDefault(); setIsDraggingCover(true); }}
+              onDragLeave={() => setIsDraggingCover(false)}
+              onDrop={handleCoverDrop}
+            >
               <div className="flex size-14 items-center justify-center rounded-2xl bg-secondary">
                 <Upload className="size-6 text-muted-foreground" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground">No image yet</p>
+                <p className="text-sm font-medium text-foreground">
+                  {isDraggingCover ? 'Drop image here' : 'No image yet'}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Paste a URL above to preview your cover image
+                  {isDraggingCover ? 'Release to upload' : 'Drag & drop or paste a URL above'}
                 </p>
               </div>
             </div>
@@ -2468,17 +2574,26 @@ function StepMedia({
               type="button"
               onClick={() => photoInputRef.current?.click()}
               disabled={isUploadingGallery}
-              className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/50 py-12 transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={cn(
+                "flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-12 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                isDraggingGallery
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-muted/50 hover:border-primary/40 hover:bg-primary/5"
+              )}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingGallery(true); }}
+              onDragEnter={(e) => { e.preventDefault(); setIsDraggingGallery(true); }}
+              onDragLeave={() => setIsDraggingGallery(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDraggingGallery(false); handlePhotoFiles(e.dataTransfer.files); }}
             >
               <div className="flex size-14 items-center justify-center rounded-2xl bg-secondary">
                 <ImageIcon className="size-6 text-muted-foreground" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">
-                  {isUploadingGallery ? 'Uploading...' : 'Upload photos'}
+                  {isUploadingGallery ? 'Uploading...' : isDraggingGallery ? 'Drop images here' : 'Upload photos'}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {isUploadingGallery ? 'Please wait' : 'Click to browse — JPG, PNG, WebP supported'}
+                  {isUploadingGallery ? 'Please wait' : isDraggingGallery ? 'Release to upload' : 'Drag & drop or click to browse — JPG, PNG, WebP supported'}
                 </p>
               </div>
             </button>
@@ -2512,15 +2627,191 @@ function StepMedia({
                 type="button"
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isUploadingGallery}
-                className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/50 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                className={cn(
+                  "flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                  isDraggingGallery
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingGallery(true); }}
+                onDragEnter={(e) => { e.preventDefault(); setIsDraggingGallery(true); }}
+                onDragLeave={() => setIsDraggingGallery(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDraggingGallery(false); handlePhotoFiles(e.dataTransfer.files); }}
               >
                 <Plus className="size-5" />
                 <span className="text-xs font-medium">
-                  {isUploadingGallery ? 'Uploading...' : 'Add More'}
+                  {isUploadingGallery ? 'Uploading...' : isDraggingGallery ? 'Drop here' : 'Add More'}
                 </span>
               </button>
             </div>
           )}
+        </div>
+
+        {/* Divider */}
+        <Separator />
+
+        {/* Sponsor Logos */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Sponsor Logos</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Optional. Upload sponsor logos to display on your event page.
+              </p>
+            </div>
+            {form.sponsor_logos.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => sponsorInputRef.current?.click()}
+              >
+                <Plus className="size-3.5" />
+                Add More
+              </Button>
+            )}
+          </div>
+
+          <input
+            ref={sponsorInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handleSponsorFiles(e.target.files)}
+          />
+
+          {form.sponsor_logos.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => sponsorInputRef.current?.click()}
+              disabled={isUploadingSponsor}
+              className={cn(
+                "flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                isDraggingSponsor
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-muted/50 hover:border-primary/40 hover:bg-primary/5"
+              )}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingSponsor(true); }}
+              onDragEnter={(e) => { e.preventDefault(); setIsDraggingSponsor(true); }}
+              onDragLeave={() => setIsDraggingSponsor(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDraggingSponsor(false); handleSponsorFiles(e.dataTransfer.files); }}
+            >
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-secondary">
+                <ImageIcon className="size-5 text-muted-foreground" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">
+                  {isUploadingSponsor ? 'Uploading...' : isDraggingSponsor ? 'Drop logos here' : 'Upload sponsor logos'}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {isUploadingSponsor ? 'Please wait' : isDraggingSponsor ? 'Release to upload' : 'Drag & drop or click — JPG, PNG, WebP, SVG — max 2 MB each'}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              {form.sponsor_logos.map((url, idx) => (
+                <div
+                  key={url}
+                  className="group relative aspect-[3/2] overflow-hidden rounded-xl border border-border bg-white flex items-center justify-center p-2"
+                >
+                  <img
+                    src={url}
+                    alt={`Sponsor ${idx + 1}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSponsorLogo(idx)}
+                    className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-foreground/70 text-background opacity-0 shadow transition-opacity group-hover:opacity-100"
+                    aria-label="Remove sponsor logo"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => sponsorInputRef.current?.click()}
+                disabled={isUploadingSponsor}
+                className={cn(
+                  "flex aspect-[3/2] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                  isDraggingSponsor
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-muted/50 hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingSponsor(true); }}
+                onDragEnter={(e) => { e.preventDefault(); setIsDraggingSponsor(true); }}
+                onDragLeave={() => setIsDraggingSponsor(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDraggingSponsor(false); handleSponsorFiles(e.dataTransfer.files); }}
+              >
+                <Plus className="size-5" />
+                <span className="text-xs font-medium">
+                  {isUploadingSponsor ? 'Uploading...' : isDraggingSponsor ? 'Drop here' : 'Add More'}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <Separator />
+
+        {/* Video / Trailer Embed */}
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Video / Trailer</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Optional. Paste a YouTube or Vimeo URL to embed a trailer on your event page.
+            </p>
+          </div>
+
+          <FormField
+            label="Video URL"
+            hint="Supports YouTube and Vimeo links (e.g. https://www.youtube.com/watch?v=... or https://vimeo.com/...)"
+          >
+            <Input
+              value={form.trailer_url}
+              onChange={(e) => updateField('trailer_url', e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="h-11"
+            />
+          </FormField>
+
+          {form.trailer_url && (() => {
+            const url = form.trailer_url.trim();
+            let embedUrl = '';
+            // YouTube
+            const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+            if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+            // Vimeo
+            const vimeoMatch = url.match(/(?:vimeo\.com\/)(\d+)/);
+            if (vimeoMatch) embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+            if (embedUrl) {
+              return (
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                    <iframe
+                      src={embedUrl}
+                      className="absolute inset-0 h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title="Video preview"
+                    />
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50">
+                <p className="text-sm font-medium text-amber-700">Could not detect a valid video URL</p>
+                <p className="text-xs text-amber-600">Paste a YouTube or Vimeo link above</p>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -2716,6 +3007,12 @@ function StepReview({
             />
           </ReviewCard>
         )}
+
+          {form.trailer_url && (
+            <ReviewCard title="Video / Trailer" icon={Eye}>
+              <p className="text-sm text-muted-foreground truncate">{form.trailer_url}</p>
+            </ReviewCard>
+          )}
       </div>
     </div>
   );

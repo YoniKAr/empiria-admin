@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/users", label: "Users" },
   { href: "/dashboard/tickets", label: "Tickets" },
   { href: "/dashboard/media", label: "Media" },
+  { href: "/dashboard/specials", label: "Specials" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 

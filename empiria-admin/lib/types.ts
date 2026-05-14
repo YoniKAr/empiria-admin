@@ -147,6 +147,37 @@ export interface Category {
   created_at: string;
 }
 
+export interface CategoryPage {
+  id: string;
+  category_id: string;
+  slug: string;
+  title: string;
+  hero_media_url: string | null;
+  hero_media_type: "image" | "video";
+  subtitle: string | null;
+  description: string | null;
+  pamphlet_url: string | null;
+  events_bg_url: string | null;
+  events_section_title: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  category?: Category;
+}
+
+export interface CategoryPageInput {
+  category_id: string;
+  slug: string;
+  title: string;
+  hero_media_url?: string | null;
+  hero_media_type: "image" | "video";
+  subtitle?: string | null;
+  description?: string | null;
+  pamphlet_url?: string | null;
+  events_bg_url?: string | null;
+  events_section_title?: string | null;
+}
+
 // ─── Dashboard KPIs ───
 
 export interface DashboardKpis {

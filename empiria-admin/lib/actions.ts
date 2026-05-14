@@ -14,6 +14,7 @@ import type {
   TicketStatus,
   DashboardKpis,
   RevenueDataPoint,
+  CategoryPageInput,
 } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -1903,4 +1904,151 @@ export async function deleteEventMedia(input: {
   }
 
   return { success: false, error: 'Unknown media type' };
+}
+
+// ═══════════════════════════════════════════
+//  SPECIAL CATEGORY PAGES
+// ═══════════════════════════════════════════
+
+export async function getCategoryPages() {
+  await adminGuard();
+  const { data, error } = await db()
+    .from("category_pages")
+    .select("*, category:categories(id, name, slug)")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function getCategoryPage(id: string) {
+  await adminGuard();
+  const { data, error } = await db()
+    .from("category_pages")
+    .select("*, category:categories(id, name, slug)")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createCategoryPage(
+  form: CategoryPageInput
+): Promise<ActionResult<{ id: string }>> {
+  await adminGuard();
+
+  if (!form.category_id) return { success: false, error: "Category is required" };
+  if (!form.title?.trim()) return { success: false, error: "Title is required" };
+  if (!form.slug?.trim()) return { success: false, error: "Slug is required" };
+
+  const { data, error } = await db()
+    .from("category_pages")
+    .insert({
+      category_id: form.category_id,
+      slug: form.slug.trim().toLowerCase(),
+      title: form.title.trim(),
+      hero_media_url: form.hero_media_url || null,
+      hero_media_type: form.hero_media_type || "image",
+      subtitle: form.subtitle || null,
+      description: form.description || null,
+      pamphlet_url: form.pamphlet_url || null,
+      events_bg_url: form.events_bg_url || null,
+      events_section_title: form.events_section_title || null,
+      is_active: false,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/dashboard/specials");
+  return { success: true, data: { id: data.id } };
+}
+
+export async function updateCategoryPage(
+  id: string,
+  form: CategoryPageInput
+): Promise<ActionResult<{}>> {
+  await adminGuard();
+
+  if (!form.category_id) return { success: false, error: "Category is required" };
+  if (!form.title?.trim()) return { success: false, error: "Title is required" };
+  if (!form.slug?.trim()) return { success: false, error: "Slug is required" };
+
+  const { error } = await db()
+    .from("category_pages")
+    .update({
+      category_id: form.category_id,
+      slug: form.slug.trim().toLowerCase(),
+      title: form.title.trim(),
+      hero_media_url: form.hero_media_url || null,
+      hero_media_type: form.hero_media_type || "image",
+      subtitle: form.subtitle || null,
+      description: form.description || null,
+      pamphlet_url: form.pamphlet_url || null,
+      events_bg_url: form.events_bg_url || null,
+      events_section_title: form.events_section_title || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/dashboard/specials");
+  return { success: true, data: {} };
+}
+
+export async function toggleCategoryPageActive(id: string, isActive: boolean) {
+  await adminGuard();
+  const { error } = await db()
+    .from("category_pages")
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/specials");
+}
+
+export async function deleteCategoryPage(id: string) {
+  await adminGuard();
+  const { error } = await db().from("category_pages").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/specials");
+}
+
+export async function uploadCategoryPageAsset(
+  formData: FormData
+): Promise<ImageUploadResult<{ url: string }>> {
+  const admin = await adminGuard();
+
+  const file = formData.get("file") as File | null;
+  const assetType = formData.get("asset_type") as string | null; // 'hero' | 'bg' | 'pamphlet'
+  if (!file || file.size === 0) return { success: false, error: "No file provided" };
+
+  if (assetType === "pamphlet") {
+    if (file.type !== "application/pdf") {
+      return { success: false, error: "File must be a PDF" };
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return { success: false, error: "PDF must be under 10 MB" };
+    }
+  } else {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) {
+      return { success: false, error: "File must be JPEG, PNG, WebP, or GIF" };
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return { success: false, error: "Image must be under 5 MB" };
+    }
+  }
+
+  const supabase = db();
+  const ext = file.name.split(".").pop() ?? (assetType === "pamphlet" ? "pdf" : "jpg");
+  const prefix = assetType === "pamphlet" ? "pamphlets" : assetType === "bg" ? "bg" : "hero";
+  const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("category-pages")
+    .upload(path, file, { contentType: file.type });
+
+  if (uploadError) return { success: false, error: uploadError.message };
+
+  const { data: publicUrlData } = supabase.storage.from("category-pages").getPublicUrl(path);
+  return { success: true, data: { url: `${publicUrlData.publicUrl}?t=${Date.now()}` } };
 }

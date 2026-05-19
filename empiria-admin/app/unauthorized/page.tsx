@@ -1,10 +1,16 @@
 import { ShieldX, ArrowLeft, LogOut } from "lucide-react";
 import { getSessionUser } from "@/lib/admin-guard";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function UnauthorizedPage() {
   const user = await getSessionUser();
+
+  // If the user's role has been updated to admin, redirect to dashboard
+  if (user?.role === "admin") {
+    redirect("/dashboard");
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
